@@ -7,6 +7,8 @@
 
 
 
+
+
 import React, { useState, useMemo } from 'react';
 import { useGameStore } from '../store.ts';
 import { getHexKey, getNeighbors, getSecondsToGrow, findPath } from '../services/hexUtils.ts';
@@ -275,6 +277,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
   };
 
   const showNextLevel = gameStatus === 'VICTORY' && winCondition && winCondition.levelId >= 0 && CAMPAIGN_LEVELS.some(l => l.levelId === winCondition.levelId + 1);
+  const showRetry = gameStatus === 'DEFEAT' && winCondition && winCondition.levelId >= 0;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-30 select-none">
@@ -557,6 +560,14 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                         >
                             <span>Next Sector</span>
                             <ArrowRight className="w-4 h-4" />
+                        </button>
+                    ) : showRetry ? (
+                        <button 
+                            onClick={() => { startCampaignLevel(winCondition!.levelId); playUiSound('CLICK'); }} 
+                            className="flex-1 py-4 bg-amber-600 hover:bg-amber-500 rounded-xl text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <span>Retry Sector</span>
+                            <RotateCcw className="w-4 h-4" />
                         </button>
                     ) : (
                         <button onClick={() => { abandonSession(); setUIState('LEADERBOARD'); playUiSound('CLICK'); }} className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/20 transition-colors">View Leaderboard</button>
