@@ -78,65 +78,6 @@ const DustCloud: React.FC<VisualParticle & { onComplete: (id: number) => void }>
     );
 });
 
-// --- FIREWORKS ---
-const Firework: React.FC<VisualParticle & { onComplete: (id: number) => void }> = React.memo(({ id, x, y, color, onComplete }) => {
-    const groupRef = useRef<Konva.Group>(null);
-
-    useEffect(() => {
-        const node = groupRef.current;
-        if (!node) return;
-
-        // Animate Up (Launch)
-        const launchTween = new Konva.Tween({
-            node: node,
-            y: y - 150, // Fly up
-            duration: 0.5,
-            easing: Konva.Easings.EaseOut,
-            onFinish: () => {
-                // EXPLODE
-                const parts = node.find('Circle');
-                parts.forEach((p) => {
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = 30 + Math.random() * 30;
-                    
-                    new Konva.Tween({
-                        node: p,
-                        x: Math.cos(angle) * dist,
-                        y: Math.sin(angle) * dist,
-                        opacity: 0,
-                        duration: 0.5,
-                        easing: Konva.Easings.EaseOut
-                    }).play();
-                });
-            }
-        });
-        launchTween.play();
-
-        // Cleanup timer
-        const t = setTimeout(() => {
-            onComplete(id);
-        }, 1200);
-
-        return () => clearTimeout(t);
-    }, [id, y, onComplete]);
-
-    return (
-        <Group ref={groupRef} x={x} y={y}>
-            {/* Trail/Center */}
-            <Circle radius={2} fill="white" />
-            {/* Particles */}
-            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
-                <Circle 
-                    key={i}
-                    x={0} y={0}
-                    radius={3}
-                    fill={color}
-                />
-            ))}
-        </Group>
-    );
-});
-
 
 const FloatingEffect: React.FC<{ effect: FloatingText; rotation: number }> = React.memo(({ effect, rotation }) => {
     const groupRef = useRef<Konva.Group>(null);
@@ -197,9 +138,6 @@ const GameView: React.FC = () => {
   const bots = useGameStore(state => state.session?.bots);
   const effects = useGameStore(state => state.session?.effects); // Visual Effects
   const isPlayerGrowing = useGameStore(state => state.session?.isPlayerGrowing);
-  const tutorialStep = useGameStore(state => state.session?.tutorialStep);
-  const winCondition = useGameStore(state => state.session?.winCondition);
-  const gameStatus = useGameStore(state => state.session?.gameStatus);
   
   // Pending Confirmation Logic
   const pendingConfirmation = useGameStore(state => state.pendingConfirmation);
@@ -208,7 +146,6 @@ const GameView: React.FC = () => {
   const tick = useGameStore(state => state.tick);
   const movePlayer = useGameStore(state => state.movePlayer);
   const hideToast = useGameStore(state => state.hideToast);
-  const checkTutorialCamera = useGameStore(state => state.checkTutorialCamera);
   const toast = useGameStore(state => state.toast);
   
   if (!grid || !player || !bots) return null;
@@ -220,20 +157,14 @@ const GameView: React.FC = () => {
   const targetRotationRef = useRef(0); 
   const isRotating = useRef(false);
   const lastMouseX = useRef(0);
-  const rotationAccumulator = useRef(0); // Track total rotation for tutorial
   const movementTracker = useRef<Record<string, { lastQ: number; lastR: number; fromQ: number; fromR: number; startTime: number }>>({});
   
   // Local Particle State (Ephemeral)
   const [particles, setParticles] = useState<VisualParticle[]>([]);
-  const [fireworks, setFireworks] = useState<VisualParticle[]>([]);
 
   // Interaction State
   const [hoveredHexId, setHoveredHexId] = useState<string | null>(null);
   const [selectedHexId, setSelectedHexId] = useState<string | null>(null);
-
-  // Touch State for Gestures
-  const lastTouchDist = useRef<number>(0);
-  const lastTouchAngle = useRef<number>(0);
 
   // Game Loop
   useEffect(() => {
@@ -254,28 +185,6 @@ const GameView: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // --- FIREWORKS LOOP ---
-  useEffect(() => {
-      let fwInterval: number | null = null;
-      if (tutorialStep === 'VICTORY_ANIMATION' || gameStatus === 'VICTORY') {
-          fwInterval = window.setInterval(() => {
-              const id = Date.now() + Math.random();
-              const colors = ['#ef4444', '#eab308', '#3b82f6', '#10b981', '#a855f7'];
-              const color = colors[Math.floor(Math.random() * colors.length)];
-              
-              // Random pos near player
-              const pPos = hexToPixel(player.q, player.r, cameraRotation);
-              const offsetX = (Math.random() - 0.5) * 400;
-              const offsetY = (Math.random() - 0.5) * 300;
-
-              setFireworks(prev => [...prev, { id, x: pPos.x + offsetX, y: pPos.y + offsetY, color }]);
-          }, 300); // 3 per second roughly
-      }
-      return () => {
-          if (fwInterval) clearInterval(fwInterval);
-      };
-  }, [tutorialStep, gameStatus, player.q, player.r, cameraRotation]);
-
   const spawnDust = useCallback((x: number, y: number, color: string) => {
       const id = Date.now() + Math.random();
       // Use a light grey/white for generic dust, or color tinted
@@ -284,10 +193,6 @@ const GameView: React.FC = () => {
 
   const removeParticle = useCallback((id: number) => {
       setParticles(prev => prev.filter(p => p.id !== id));
-  }, []);
-
-  const removeFirework = useCallback((id: number) => {
-      setFireworks(prev => prev.filter(p => p.id !== id));
   }, []);
 
   const rotateCamera = useCallback((direction: 'left' | 'right') => {
@@ -349,9 +254,6 @@ const GameView: React.FC = () => {
   // STAGE INTERACTIONS (BACKGROUND)
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
      // If clicking on background (not a shape/hex), cancel pending confirmation
-     // But check if it was a multi-touch end event (which fires 'click' sometimes)
-     if (e.evt.type === 'touchend') return;
-
      if (e.target === e.target.getStage()) {
          cancelPendingAction();
          setSelectedHexId(null);
@@ -372,11 +274,6 @@ const GameView: React.FC = () => {
         const deltaX = e.evt.clientX - lastMouseX.current;
         lastMouseX.current = e.evt.clientX;
         const sensitivity = 0.5;
-        
-        // Track rotation for tutorial
-        rotationAccumulator.current += Math.abs(deltaX);
-        checkTutorialCamera(rotationAccumulator.current);
-
         setCameraRotation(prev => {
             const newRot = prev + deltaX * sensitivity;
             targetRotationRef.current = newRot; 
@@ -401,78 +298,8 @@ const GameView: React.FC = () => {
       }
   };
 
-  // --- TOUCH GESTURE HANDLING ---
-  const handleTouchStart = (e: Konva.KonvaEventObject<TouchEvent>) => {
-      const touches = e.evt.touches;
-      if (touches.length === 2) {
-          const stage = e.target.getStage();
-          if (stage) stage.stopDrag();
-
-          const p1 = { x: touches[0].clientX, y: touches[0].clientY };
-          const p2 = { x: touches[1].clientX, y: touches[1].clientY };
-
-          lastTouchDist.current = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-          lastTouchAngle.current = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
-      }
-  };
-
-  const handleTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
-      const touches = e.evt.touches;
-      if (touches.length === 2) {
-          e.evt.preventDefault(); 
-          const stage = e.target.getStage();
-          if (!stage) return;
-          stage.draggable(false);
-
-          const p1 = { x: touches[0].clientX, y: touches[0].clientY };
-          const p2 = { x: touches[1].clientX, y: touches[1].clientY };
-          
-          const newDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-          const newCenter = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-          const newAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
-
-          // ROTATION
-          const deltaAngle = newAngle - lastTouchAngle.current;
-          setCameraRotation(prev => {
-              const nextRot = prev + deltaAngle;
-              targetRotationRef.current = nextRot;
-              return nextRot;
-          });
-
-          // ZOOM
-          if (lastTouchDist.current > 0) {
-              const scaleBy = newDist / lastTouchDist.current;
-              const oldScale = viewState.scale;
-              const newScale = Math.max(0.4, Math.min(oldScale * scaleBy, 2.5));
-
-              const pointTo = {
-                  x: (newCenter.x - viewState.x) / oldScale,
-                  y: (newCenter.y - viewState.y) / oldScale,
-              };
-
-              const newPos = {
-                  x: newCenter.x - pointTo.x * newScale,
-                  y: newCenter.y - pointTo.y * newScale,
-              };
-
-              setViewState({ x: newPos.x, y: newPos.y, scale: newScale });
-          }
-
-          lastTouchDist.current = newDist;
-          lastTouchAngle.current = newAngle;
-      }
-  };
-
-  const handleTouchEnd = (e: Konva.KonvaEventObject<TouchEvent>) => {
-      if (e.evt.touches.length < 2) {
-          lastTouchDist.current = 0;
-          const stage = e.target.getStage();
-          if (stage) stage.draggable(true);
-      }
-  };
-
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-     if (!isRotating.current && e.evt.touches?.length !== 2) {
+     if (!isRotating.current) {
         setViewState(prev => ({ ...prev, x: e.target.x(), y: e.target.y() }));
      }
   };
@@ -488,43 +315,6 @@ const GameView: React.FC = () => {
       const target = pendingConfirmation.data.path[pendingConfirmation.data.path.length - 1];
       return getHexKey(target.q, target.r);
   }, [pendingConfirmation]);
-
-  // Highlight targets for tutorial
-  const tutorialHighlights = useMemo(() => {
-      const targets: Record<string, 'CYAN' | 'BLUE' | 'AMBER'> = {};
-      
-      if (tutorialStep === 'UPGRADE_CENTER_3') {
-          const queueSize = winCondition?.queueSize || 1;
-          const hasMomentum = player.recentUpgrades.length >= queueSize;
-          
-          if (hasMomentum) {
-              // Highlight Center (Amber for Upgrade)
-              targets[getHexKey(0,0)] = 'AMBER';
-          } else {
-              // Highlight reachable L0 hexes (Cyan for Acquire/Momentum)
-              const n = getNeighbors(player.q, player.r);
-              n.forEach(neighbor => {
-                  const k = getHexKey(neighbor.q, neighbor.r);
-                  const h = grid[k];
-                  if (h && h.currentLevel === 0 && h.maxLevel === 0) {
-                      targets[k] = 'CYAN';
-                  }
-              });
-          }
-      } else if (tutorialStep === 'BUILD_FOUNDATION') {
-          // Highlight existing L1 neighbors that need upgrade to L2
-          const centerNeighbors = getNeighbors(0,0);
-          centerNeighbors.forEach(n => {
-              const k = getHexKey(n.q, n.r);
-              const h = grid[k];
-              if (h && h.currentLevel === 1) {
-                  targets[k] = 'BLUE';
-              }
-          });
-      }
-
-      return targets;
-  }, [tutorialStep, winCondition, player.recentUpgrades, player.q, player.r, grid]);
 
   const renderList = useMemo(() => {
      const items: RenderItem[] = [];
@@ -668,9 +458,6 @@ const GameView: React.FC = () => {
           onDragStart={() => setHoveredHexId(null)}
           onDragEnd={handleDragEnd}
           onContextMenu={(e) => e.evt.preventDefault()} x={viewState.x} y={viewState.y} scaleX={viewState.scale} scaleY={viewState.scale}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
         >
           <Layer>
             {renderList.map((item) => {
@@ -678,21 +465,6 @@ const GameView: React.FC = () => {
                     const isOccupied = (item.q === player.q && item.r === player.r) || safeBots.some(b => b.q === item.q && b.r === item.r);
                     const isPending = item.id === pendingTargetKey;
                     
-                    // Logic to highlight specific steps
-                    let isTutorialTarget = false;
-                    let tutorialColor = 'blue'; // default
-
-                    if (tutorialStep === 'MOVE_1' && item.q === 1 && item.r === -1) isTutorialTarget = true;
-                    else if (tutorialStep === 'MOVE_2' && item.q === 0 && item.r === -1) isTutorialTarget = true;
-                    else if (tutorialStep === 'MOVE_3' && item.q === 0 && item.r === 0) isTutorialTarget = true;
-                    else if (tutorialHighlights[item.id]) {
-                        isTutorialTarget = true;
-                        // Map colors
-                        if (tutorialHighlights[item.id] === 'CYAN') tutorialColor = 'cyan';
-                        if (tutorialHighlights[item.id] === 'AMBER') tutorialColor = 'amber';
-                        if (tutorialHighlights[item.id] === 'BLUE') tutorialColor = 'blue';
-                    }
-
                     return (
                         <Hexagon 
                             key={item.id} 
@@ -705,8 +477,6 @@ const GameView: React.FC = () => {
                             pendingCost={isPending && pendingConfirmation ? pendingConfirmation.data.costCoins : null}
                             onHexClick={handleHexClick} 
                             onHover={setHoveredHexId} 
-                            isTutorialTarget={isTutorialTarget}
-                            tutorialHighlightColor={tutorialColor as any}
                         />
                     );
                 } else if (item.type === 'UNIT') {
@@ -736,11 +506,6 @@ const GameView: React.FC = () => {
             {/* Visual Effects Layer (Particles & Text) */}
             {particles.map(p => (
                 <DustCloud key={p.id} {...p} onComplete={removeParticle} />
-            ))}
-
-            {/* Fireworks for Victory */}
-            {fireworks.map(p => (
-                <Firework key={p.id} {...p} onComplete={removeFirework} />
             ))}
 
             {effects && effects.map((eff) => (

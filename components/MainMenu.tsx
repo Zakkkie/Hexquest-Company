@@ -162,8 +162,17 @@ const MainMenu: React.FC = () => {
 
   const renderAvatar = (color: string, iconId: string, size = 'md') => {
     const IconComponent = AVATAR_ICONS.find(i => i.id === iconId)?.icon || UserCircle;
-    const dims = size === 'lg' ? 'w-16 h-16' : 'w-8 h-8';
-    const iconSize = size === 'lg' ? 'w-8 h-8' : 'w-4 h-4';
+    
+    let dims = 'w-8 h-8';
+    let iconSize = 'w-4 h-4';
+    
+    if (size === 'lg') {
+        dims = 'w-16 h-16';
+        iconSize = 'w-8 h-8';
+    } else if (size === 'sm') {
+        dims = 'w-6 h-6';
+        iconSize = 'w-3 h-3';
+    }
     
     return (
       <div className={`${dims} rounded-full flex items-center justify-center border-2 border-white/20 shadow-lg`} style={{ backgroundColor: color }}>
@@ -175,79 +184,84 @@ const MainMenu: React.FC = () => {
   return (
     <div className="relative w-full h-full flex items-center justify-center pointer-events-auto">
       
-      {/* Top Left - Sound Toggle */}
-      <div className="absolute top-6 left-6 flex gap-2 z-50">
-        <button 
-          onClick={() => { toggleMute(); playUiSound('CLICK'); }}
-          className="p-3 bg-slate-900/50 hover:bg-slate-800 backdrop-blur rounded-full text-slate-400 hover:text-white transition-all border border-slate-800"
-        >
-          {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-        </button>
-        
-        {/* Language Toggle */}
-        <button 
-          onClick={() => setLanguage(language === 'EN' ? 'RU' : 'EN')}
-          className="p-3 bg-slate-900/50 hover:bg-slate-800 backdrop-blur rounded-full text-slate-400 hover:text-white transition-all border border-slate-800 flex items-center justify-center gap-1 font-bold text-xs"
-        >
-          <Globe className="w-4 h-4" /> {language}
-        </button>
-      </div>
-
-      {/* AUTH WIDGET (Top Right) */}
-      <div className="absolute top-6 right-6 flex flex-col items-end gap-4 z-50 pointer-events-auto">
-        {!user ? (
-          <div className="flex gap-3">
-             <button 
-              onMouseEnter={() => playUiSound('HOVER')}
-              onClick={() => { setAuthMode('GUEST'); resetForm(); playUiSound('CLICK'); }}
-              className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur-md rounded-lg border border-slate-600 text-slate-300 hover:text-white transition-all text-xs font-bold uppercase tracking-wider"
-            >
-              <Ghost className="w-4 h-4" /> {t.AUTH_GUEST}
-            </button>
-             <button 
-              onMouseEnter={() => playUiSound('HOVER')}
-              onClick={() => { setAuthMode('LOGIN'); resetForm(); playUiSound('CLICK'); }}
-              className="cursor-pointer px-4 py-2 bg-slate-900/50 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 text-xs font-bold uppercase tracking-wider transition-colors"
-            >
-              {t.AUTH_LOGIN}
-            </button>
-             <button 
-              onMouseEnter={() => playUiSound('HOVER')}
-              onClick={() => { setAuthMode('REGISTER'); resetForm(); playUiSound('CLICK'); }}
-              className="cursor-pointer px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 rounded-lg border border-indigo-500/30 text-xs font-bold uppercase tracking-wider transition-colors"
-            >
-              {t.AUTH_REGISTER}
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-4 bg-slate-900/90 p-2 pl-4 rounded-full border border-slate-700 shadow-2xl">
-            <div className="flex flex-col items-end">
-              <span className="text-sm font-bold text-white leading-tight">{user.nickname}</span>
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest">{user.isGuest ? t.AUTH_GUEST : 'Commander'}</span>
+      {/* HEADER BAR */}
+      <div className="absolute top-0 left-0 w-full p-4 md:p-6 flex flex-col md:flex-row justify-between items-center md:items-start z-50 pointer-events-auto">
+        <div className="w-full flex justify-between items-start">
+            
+            {/* LEFT: SETTINGS */}
+            <div className="flex gap-2">
+                <button 
+                  onClick={() => { toggleMute(); playUiSound('CLICK'); }}
+                  className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-slate-900/50 hover:bg-slate-800 backdrop-blur rounded-full text-slate-400 hover:text-white transition-all border border-slate-800"
+                >
+                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+                
+                <button 
+                  onClick={() => setLanguage(language === 'EN' ? 'RU' : 'EN')}
+                  className="h-10 md:h-12 px-3 md:px-4 bg-slate-900/50 hover:bg-slate-800 backdrop-blur rounded-full text-slate-400 hover:text-white transition-all border border-slate-800 flex items-center justify-center gap-1 font-bold text-xs"
+                >
+                  <Globe className="w-4 h-4" /> {language}
+                </button>
             </div>
-            {renderAvatar(user.avatarColor, user.avatarIcon, 'md')}
-            <div className="h-8 w-px bg-slate-700 mx-1"></div>
-            <button 
-              onMouseEnter={() => playUiSound('HOVER')}
-              onClick={handleLogout}
-              className="cursor-pointer p-2 hover:bg-red-500/20 rounded-full text-slate-400 hover:text-red-400 transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+
+            {/* RIGHT: AUTH */}
+            <div className="flex items-center gap-2">
+                {!user ? (
+                  <div className="flex gap-2">
+                     <button 
+                      onMouseEnter={() => playUiSound('HOVER')}
+                      onClick={() => { setAuthMode('GUEST'); resetForm(); playUiSound('CLICK'); }}
+                      className="cursor-pointer flex items-center gap-1 md:gap-2 px-3 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur-md rounded-lg border border-slate-600 text-slate-300 hover:text-white transition-all text-[10px] md:text-xs font-bold uppercase tracking-wider h-10"
+                    >
+                      <Ghost className="w-3 h-3 md:w-4 md:h-4" /> <span className="hidden sm:inline">{t.AUTH_GUEST}</span><span className="sm:hidden">{t.AUTH_GUEST.substring(0, 5)}</span>
+                    </button>
+                     <button 
+                      onMouseEnter={() => playUiSound('HOVER')}
+                      onClick={() => { setAuthMode('LOGIN'); resetForm(); playUiSound('CLICK'); }}
+                      className="cursor-pointer px-3 py-2 bg-slate-900/50 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 text-[10px] md:text-xs font-bold uppercase tracking-wider transition-colors h-10"
+                    >
+                      {t.AUTH_LOGIN}
+                    </button>
+                     <button 
+                      onMouseEnter={() => playUiSound('HOVER')}
+                      onClick={() => { setAuthMode('REGISTER'); resetForm(); playUiSound('CLICK'); }}
+                      className="cursor-pointer px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 rounded-lg border border-indigo-500/30 text-[10px] md:text-xs font-bold uppercase tracking-wider transition-colors h-10"
+                    >
+                      {t.AUTH_REGISTER}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 bg-slate-900/90 p-1.5 pl-4 rounded-full border border-slate-700 shadow-2xl">
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs font-bold text-white leading-tight max-w-[100px] truncate">{user.nickname}</span>
+                      <span className="text-[8px] md:text-[10px] text-slate-400 uppercase tracking-widest">{user.isGuest ? t.AUTH_GUEST : 'Commander'}</span>
+                    </div>
+                    {renderAvatar(user.avatarColor, user.avatarIcon, 'sm')}
+                    <div className="h-6 w-px bg-slate-700 mx-1"></div>
+                    <button 
+                      onMouseEnter={() => playUiSound('HOVER')}
+                      onClick={handleLogout}
+                      className="cursor-pointer p-2 hover:bg-red-500/20 rounded-full text-slate-400 hover:text-red-400 transition-colors"
+                      title="Logout"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+            </div>
+        </div>
       </div>
 
       {/* CENTER MENU */}
-      <div className="flex flex-col gap-6 w-96 z-10">
+      <div className="flex flex-col gap-6 w-full max-w-sm px-6 z-10">
         
         {/* Title */}
         <div className="text-center mb-6"> 
-          <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-amber-600 italic tracking-tighter drop-shadow-[0_0_25px_rgba(245,158,11,0.4)]">
+          <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-amber-600 italic tracking-tighter drop-shadow-[0_0_25px_rgba(245,158,11,0.4)]">
             {t.TITLE}
           </h1>
-          <p className="text-xs text-slate-500 font-mono tracking-[0.6em] uppercase mt-2 opacity-60">
+          <p className="text-[10px] md:text-xs text-slate-500 font-mono tracking-[0.6em] uppercase mt-2 opacity-60">
             {t.SUBTITLE}
           </p>
         </div>
@@ -317,8 +331,8 @@ const MainMenu: React.FC = () => {
       {/* AUTH MODAL & MISSION CONFIG MODAL (Existing code omitted for brevity as it remains same) */}
       {/* ... keeping existing auth/mission modals ... */}
       {authMode && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl shadow-2xl w-96 relative">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl shadow-2xl w-full max-w-sm relative">
             <button 
               onClick={() => { setAuthMode(null); playUiSound('CLICK'); }}
               className="cursor-pointer absolute top-4 right-4 text-slate-500 hover:text-white"
@@ -425,7 +439,7 @@ const MainMenu: React.FC = () => {
       {/* MISSION CONFIG MODAL */}
       {showMissionConfig && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl shadow-2xl w-[550px] relative overflow-hidden flex flex-col gap-6">
+          <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden flex flex-col gap-6">
              {/* Decorative header line */}
              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-indigo-500 to-amber-500"></div>
 
