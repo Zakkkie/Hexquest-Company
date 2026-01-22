@@ -171,7 +171,7 @@ const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({
                                 Missing Upgrade Point! You cannot upgrade the same hex consecutively.
                             </p>
                             <div className="bg-black/40 p-2 rounded text-red-200 text-[10px] font-mono">
-                                OBJECTIVE: Acquire a neutral sector (L0 -> L1) to generate momentum.
+                                OBJECTIVE: Acquire a neutral sector (L0 &rarr; L1) to generate momentum.
                             </div>
                         </div>
                     )}
