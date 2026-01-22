@@ -1,11 +1,15 @@
+
 import React from 'react';
 import { useGameStore } from '../store.ts';
 import { Trophy, Coins, Layers, ArrowLeft, User, Zap, Shield, Ghost, Bot } from 'lucide-react';
+import { TEXT } from '../services/i18n.ts';
 
 const Leaderboard: React.FC = () => {
   const leaderboard = useGameStore(state => state.leaderboard);
   const user = useGameStore(state => state.user);
   const setUIState = useGameStore(state => state.setUIState);
+  const language = useGameStore(state => state.language);
+  const t = TEXT[language].LEADERBOARD;
 
   const getIconComponent = (id: string) => {
     switch(id) {
@@ -28,24 +32,24 @@ const Leaderboard: React.FC = () => {
               <Trophy className="w-8 h-8 text-amber-500" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white uppercase tracking-wider">Hall of Fame</h2>
-              <p className="text-slate-500 text-xs font-mono tracking-widest uppercase">Best Recorded Performance</p>
+              <h2 className="text-2xl font-black text-white uppercase tracking-wider">{t.TITLE}</h2>
+              <p className="text-slate-500 text-xs font-mono tracking-widest uppercase">{t.SUBTITLE}</p>
             </div>
           </div>
           <button 
             onClick={() => setUIState('MENU')}
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Menu
+            <ArrowLeft className="w-4 h-4" /> {t.BTN_BACK}
           </button>
         </div>
 
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-4 px-8 py-4 bg-slate-950/50 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800">
           <div className="col-span-1 text-center">#</div>
-          <div className="col-span-7">Commander</div>
-          <div className="col-span-2 text-right">Max Credits</div>
-          <div className="col-span-2 text-right">Max Rank</div>
+          <div className="col-span-7">{t.HEADER_COMM}</div>
+          <div className="col-span-2 text-right">{t.HEADER_CREDITS}</div>
+          <div className="col-span-2 text-right">{t.HEADER_RANK}</div>
         </div>
 
         {/* List */}
@@ -87,7 +91,7 @@ const Leaderboard: React.FC = () => {
           })}
           
           {leaderboard.length === 0 && (
-            <div className="p-8 text-center text-slate-500">No records found.</div>
+            <div className="p-8 text-center text-slate-500">{t.EMPTY}</div>
           )}
         </div>
 

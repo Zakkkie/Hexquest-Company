@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useEffect, useCallback, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { Stage, Layer, Line, Group, Text, Circle } from 'react-konva';
 import Konva from 'konva';
@@ -236,6 +231,10 @@ const GameView: React.FC = () => {
   const [hoveredHexId, setHoveredHexId] = useState<string | null>(null);
   const [selectedHexId, setSelectedHexId] = useState<string | null>(null);
 
+  // Touch State for Gestures
+  const lastTouchDist = useRef<number>(0);
+  const lastTouchAngle = useRef<number>(0);
+
   // Game Loop
   useEffect(() => {
     const interval = setInterval(tick, 100); // 100ms tick for responsive updates
@@ -350,6 +349,9 @@ const GameView: React.FC = () => {
   // STAGE INTERACTIONS (BACKGROUND)
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
      // If clicking on background (not a shape/hex), cancel pending confirmation
+     // But check if it was a multi-touch end event (which fires 'click' sometimes)
+     if (e.evt.type === 'touchend') return;
+
      if (e.target === e.target.getStage()) {
          cancelPendingAction();
          setSelectedHexId(null);
@@ -399,8 +401,78 @@ const GameView: React.FC = () => {
       }
   };
 
+  // --- TOUCH GESTURE HANDLING ---
+  const handleTouchStart = (e: Konva.KonvaEventObject<TouchEvent>) => {
+      const touches = e.evt.touches;
+      if (touches.length === 2) {
+          const stage = e.target.getStage();
+          if (stage) stage.stopDrag();
+
+          const p1 = { x: touches[0].clientX, y: touches[0].clientY };
+          const p2 = { x: touches[1].clientX, y: touches[1].clientY };
+
+          lastTouchDist.current = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+          lastTouchAngle.current = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+      }
+  };
+
+  const handleTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
+      const touches = e.evt.touches;
+      if (touches.length === 2) {
+          e.evt.preventDefault(); 
+          const stage = e.target.getStage();
+          if (!stage) return;
+          stage.draggable(false);
+
+          const p1 = { x: touches[0].clientX, y: touches[0].clientY };
+          const p2 = { x: touches[1].clientX, y: touches[1].clientY };
+          
+          const newDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+          const newCenter = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+          const newAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
+
+          // ROTATION
+          const deltaAngle = newAngle - lastTouchAngle.current;
+          setCameraRotation(prev => {
+              const nextRot = prev + deltaAngle;
+              targetRotationRef.current = nextRot;
+              return nextRot;
+          });
+
+          // ZOOM
+          if (lastTouchDist.current > 0) {
+              const scaleBy = newDist / lastTouchDist.current;
+              const oldScale = viewState.scale;
+              const newScale = Math.max(0.4, Math.min(oldScale * scaleBy, 2.5));
+
+              const pointTo = {
+                  x: (newCenter.x - viewState.x) / oldScale,
+                  y: (newCenter.y - viewState.y) / oldScale,
+              };
+
+              const newPos = {
+                  x: newCenter.x - pointTo.x * newScale,
+                  y: newCenter.y - pointTo.y * newScale,
+              };
+
+              setViewState({ x: newPos.x, y: newPos.y, scale: newScale });
+          }
+
+          lastTouchDist.current = newDist;
+          lastTouchAngle.current = newAngle;
+      }
+  };
+
+  const handleTouchEnd = (e: Konva.KonvaEventObject<TouchEvent>) => {
+      if (e.evt.touches.length < 2) {
+          lastTouchDist.current = 0;
+          const stage = e.target.getStage();
+          if (stage) stage.draggable(true);
+      }
+  };
+
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-     if (!isRotating.current) {
+     if (!isRotating.current && e.evt.touches?.length !== 2) {
         setViewState(prev => ({ ...prev, x: e.target.x(), y: e.target.y() }));
      }
   };
@@ -417,17 +489,42 @@ const GameView: React.FC = () => {
       return getHexKey(target.q, target.r);
   }, [pendingConfirmation]);
 
-  // Determine low-level highlighting target for tutorial
-  const lowLevelHighlightTarget = useMemo(() => {
-      if (tutorialStep !== 'UPGRADE_CENTER_3') return null;
-      // Find a nearby Level 0 hex to highlight if momentum is needed
-      const nearby = getNeighbors(player.q, player.r);
-      const target = nearby.find(n => {
-          const h = grid[getHexKey(n.q, n.r)];
-          return h && h.currentLevel === 0 && h.maxLevel === 0;
-      });
-      return target || null;
-  }, [tutorialStep, grid, player.q, player.r]);
+  // Highlight targets for tutorial
+  const tutorialHighlights = useMemo(() => {
+      const targets: Record<string, 'CYAN' | 'BLUE' | 'AMBER'> = {};
+      
+      if (tutorialStep === 'UPGRADE_CENTER_3') {
+          const queueSize = winCondition?.queueSize || 1;
+          const hasMomentum = player.recentUpgrades.length >= queueSize;
+          
+          if (hasMomentum) {
+              // Highlight Center (Amber for Upgrade)
+              targets[getHexKey(0,0)] = 'AMBER';
+          } else {
+              // Highlight reachable L0 hexes (Cyan for Acquire/Momentum)
+              const n = getNeighbors(player.q, player.r);
+              n.forEach(neighbor => {
+                  const k = getHexKey(neighbor.q, neighbor.r);
+                  const h = grid[k];
+                  if (h && h.currentLevel === 0 && h.maxLevel === 0) {
+                      targets[k] = 'CYAN';
+                  }
+              });
+          }
+      } else if (tutorialStep === 'BUILD_FOUNDATION') {
+          // Highlight existing L1 neighbors that need upgrade to L2
+          const centerNeighbors = getNeighbors(0,0);
+          centerNeighbors.forEach(n => {
+              const k = getHexKey(n.q, n.r);
+              const h = grid[k];
+              if (h && h.currentLevel === 1) {
+                  targets[k] = 'BLUE';
+              }
+          });
+      }
+
+      return targets;
+  }, [tutorialStep, winCondition, player.recentUpgrades, player.q, player.r, grid]);
 
   const renderList = useMemo(() => {
      const items: RenderItem[] = [];
@@ -571,6 +668,9 @@ const GameView: React.FC = () => {
           onDragStart={() => setHoveredHexId(null)}
           onDragEnd={handleDragEnd}
           onContextMenu={(e) => e.evt.preventDefault()} x={viewState.x} y={viewState.y} scaleX={viewState.scale} scaleY={viewState.scale}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <Layer>
             {renderList.map((item) => {
@@ -578,33 +678,19 @@ const GameView: React.FC = () => {
                     const isOccupied = (item.q === player.q && item.r === player.r) || safeBots.some(b => b.q === item.q && b.r === item.r);
                     const isPending = item.id === pendingTargetKey;
                     
-                    // Special highlight for tutorial target
+                    // Logic to highlight specific steps
                     let isTutorialTarget = false;
-                    if (tutorialStep === 'MOVE_1') {
-                        if (item.q === 1 && item.r === -1) isTutorialTarget = true;
-                    } else if (tutorialStep === 'MOVE_2') {
-                        if (item.q === 0 && item.r === -1) isTutorialTarget = true;
-                    } else if (tutorialStep === 'MOVE_3') {
-                        if (item.q === 0 && item.r === 0) isTutorialTarget = true;
-                    } else if (tutorialStep === 'BUILD_FOUNDATION') {
-                        // Highlight neighbors of (0,0) to indicate foundation zone
-                        const centerNeighbors = getNeighbors(0,0);
-                        if (centerNeighbors.some(n => n.q === item.q && n.r === item.r)) {
-                             isTutorialTarget = true;
-                        }
-                    } else if (tutorialStep === 'UPGRADE_CENTER_3') {
-                        const queueSize = winCondition?.queueSize || 1;
-                        const hasMomentum = player.recentUpgrades.length >= queueSize;
-                        
-                        // If has momentum, highlight CENTER
-                        if (hasMomentum) {
-                            if (item.q === 0 && item.r === 0) isTutorialTarget = true;
-                        } else {
-                            // If NO momentum, highlight nearby L0 hex to guide acquiring it
-                            if (lowLevelHighlightTarget && item.q === lowLevelHighlightTarget.q && item.r === lowLevelHighlightTarget.r) {
-                                isTutorialTarget = true;
-                            }
-                        }
+                    let tutorialColor = 'blue'; // default
+
+                    if (tutorialStep === 'MOVE_1' && item.q === 1 && item.r === -1) isTutorialTarget = true;
+                    else if (tutorialStep === 'MOVE_2' && item.q === 0 && item.r === -1) isTutorialTarget = true;
+                    else if (tutorialStep === 'MOVE_3' && item.q === 0 && item.r === 0) isTutorialTarget = true;
+                    else if (tutorialHighlights[item.id]) {
+                        isTutorialTarget = true;
+                        // Map colors
+                        if (tutorialHighlights[item.id] === 'CYAN') tutorialColor = 'cyan';
+                        if (tutorialHighlights[item.id] === 'AMBER') tutorialColor = 'amber';
+                        if (tutorialHighlights[item.id] === 'BLUE') tutorialColor = 'blue';
                     }
 
                     return (
@@ -620,6 +706,7 @@ const GameView: React.FC = () => {
                             onHexClick={handleHexClick} 
                             onHover={setHoveredHexId} 
                             isTutorialTarget={isTutorialTarget}
+                            tutorialHighlightColor={tutorialColor as any}
                         />
                     );
                 } else if (item.type === 'UNIT') {
@@ -650,10 +737,10 @@ const GameView: React.FC = () => {
             {particles.map(p => (
                 <DustCloud key={p.id} {...p} onComplete={removeParticle} />
             ))}
-            
-            {/* FIREWORKS (Victory) */}
-            {fireworks.map(f => (
-                <Firework key={f.id} {...f} onComplete={removeFirework} />
+
+            {/* Fireworks for Victory */}
+            {fireworks.map(p => (
+                <Firework key={p.id} {...p} onComplete={removeFirework} />
             ))}
 
             {effects && effects.map((eff) => (

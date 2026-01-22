@@ -1,6 +1,4 @@
 
-
-
 import { WinCondition } from '../types';
 
 export const CAMPAIGN_LEVELS: WinCondition[] = [

@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Group, Path, Shape, Circle, Text, RegularPolygon } from 'react-konva';
 import Konva from 'konva';
@@ -17,11 +13,12 @@ interface HexagonVisualProps {
   playerRank: number;
   isOccupied: boolean;
   isSelected: boolean;
-  isPendingConfirm: boolean; // New Prop
-  pendingCost: number | null; // New Prop
+  isPendingConfirm: boolean; 
+  pendingCost: number | null; 
   onHexClick: (q: number, r: number) => void;
   onHover: (id: string | null) => void;
   isTutorialTarget?: boolean;
+  tutorialHighlightColor?: 'blue' | 'amber' | 'cyan'; // New prop
 }
 
 const LEVEL_COLORS: Record<number, { fill: string; stroke: string; side: string }> = {
@@ -82,7 +79,7 @@ const getCraters = (q: number, r: number, damage: number, offsetY: number) => {
     return craters;
 };
 
-const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation, playerRank, isOccupied, isSelected, isPendingConfirm, pendingCost, onHexClick, onHover, isTutorialTarget }) => {
+const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation, playerRank, isOccupied, isSelected, isPendingConfirm, pendingCost, onHexClick, onHover, isTutorialTarget, tutorialHighlightColor = 'blue' }) => {
   const groupRef = useRef<Konva.Group>(null);
   const progressShapeRef = useRef<Konva.Shape>(null);
   const selectionRef = useRef<Konva.Path>(null);
@@ -295,6 +292,13 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
       prevStructureRef.current = hex.structureType;
   }, [hex.structureType, y]);
 
+  // Map tutorial prop to colors
+  const tutorialColorHex = useMemo(() => {
+      if (tutorialHighlightColor === 'amber') return '#fbbf24';
+      if (tutorialHighlightColor === 'cyan') return '#22d3ee';
+      return '#60a5fa'; // blue
+  }, [tutorialHighlightColor]);
+
   // --- RENDER VOID (ASH/RUBBLE TEXTURE) ---
   if (isVoid) {
       return (
@@ -413,11 +417,11 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
           <Path
             ref={tutorialHighlightRef}
             data={selectionPathData}
-            stroke="#60a5fa"
+            stroke={tutorialColorHex}
             strokeWidth={4}
             fillEnabled={false}
             perfectDrawEnabled={false}
-            shadowColor="#3b82f6"
+            shadowColor={tutorialColorHex}
             shadowBlur={20}
             shadowOpacity={1}
             listening={false}
@@ -536,6 +540,7 @@ interface SmartHexagonProps {
   onHexClick: (q: number, r: number) => void;
   onHover: (id: string | null) => void;
   isTutorialTarget?: boolean;
+  tutorialHighlightColor?: 'blue' | 'amber' | 'cyan';
 }
 
 const SmartHexagon: React.FC<SmartHexagonProps> = React.memo((props) => {

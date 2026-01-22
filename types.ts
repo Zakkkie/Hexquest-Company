@@ -1,24 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type HexCoord = { q: number; r: number; upgrade?: boolean; intent?: 'UPGRADE' | 'RECOVER' };
 
 // Read-only view of a Hex for the Bot (Architecture Requirement)
@@ -171,6 +151,7 @@ export interface PendingConfirmation {
 }
 
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
+export type Language = 'EN' | 'RU';
 
 // UPDATED WIN CONDITION FOR CAMPAIGN
 export interface WinCondition {
@@ -256,6 +237,7 @@ export interface GameState {
   leaderboard: LeaderboardEntry[];
   hasActiveSession: boolean;
   isMuted: boolean;
+  language: Language; // Added Localization
 }
 
 export type MoveAction = { type: 'MOVE'; path: { q: number; r: number }[]; stateVersion?: number };

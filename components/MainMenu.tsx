@@ -1,14 +1,9 @@
 
-
-
-
-
-
-
 import React, { useState } from 'react';
 import { useGameStore } from '../store.ts';
-import { Trophy, LogOut, Ghost, Play, ArrowRight, Zap, Shield, UserCircle, X, LogIn, Lock, Target, Gem, Crown, Bot, Skull, Activity, Signal, Volume2, VolumeX, BookOpen } from 'lucide-react';
+import { Trophy, LogOut, Ghost, Play, ArrowRight, Zap, Shield, UserCircle, X, LogIn, Lock, Target, Gem, Crown, Bot, Skull, Activity, Signal, Volume2, VolumeX, BookOpen, Globe } from 'lucide-react';
 import { WinCondition, Difficulty } from '../types.ts';
+import { TEXT } from '../services/i18n.ts';
 
 const AVATAR_COLORS = [
   '#ef4444', // Red
@@ -35,10 +30,12 @@ const MainMenu: React.FC = () => {
   const user = useGameStore(state => state.user);
   const hasActiveSession = useGameStore(state => state.hasActiveSession);
   const isMuted = useGameStore(state => state.isMuted);
+  const language = useGameStore(state => state.language);
   
   const startNewGame = useGameStore(state => state.startNewGame);
   const startCampaignLevel = useGameStore(state => state.startCampaignLevel);
   const setUIState = useGameStore(state => state.setUIState);
+  const setLanguage = useGameStore(state => state.setLanguage);
   const logout = useGameStore(state => state.logout);
   const loginAsGuest = useGameStore(state => state.loginAsGuest);
   const loginUser = useGameStore(state => state.loginUser);
@@ -60,10 +57,12 @@ const MainMenu: React.FC = () => {
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [botCount, setBotCount] = useState<number>(1);
 
+  const t = TEXT[language].MENU;
+
   const MISSION_TIERS = {
-    1: { level: 5, coins: 250, label: 'Sector Patrol' },
-    2: { level: 7, coins: 500, label: 'Regional Command' },
-    3: { level: 10, coins: 1000, label: 'Global Domination' }
+    1: { level: 5, coins: 250, label: language === 'RU' ? 'Патруль' : 'Sector Patrol' },
+    2: { level: 7, coins: 500, label: language === 'RU' ? 'Штаб Региона' : 'Regional Command' },
+    3: { level: 10, coins: 1000, label: language === 'RU' ? 'Доминация' : 'Global Domination' }
   };
 
   const resetForm = () => {
@@ -75,7 +74,7 @@ const MainMenu: React.FC = () => {
   const handleCampaignClick = () => {
      playUiSound('CLICK');
      if (hasActiveSession) {
-         if (window.confirm("Abandon current session to start campaign?")) {
+         if (window.confirm(t.ABANDON_CONFIRM)) {
              startCampaignLevel(0); // Level 0 is Tutorial
          }
      } else {
@@ -86,7 +85,7 @@ const MainMenu: React.FC = () => {
   const handleNewGameClick = () => {
     playUiSound('CLICK');
     if (hasActiveSession) {
-      if (window.confirm("Abandon current session and configure a new mission?")) {
+      if (window.confirm(t.ABANDON_CONFIRM)) {
         setShowMissionConfig(true);
       }
     } else {
@@ -114,7 +113,7 @@ const MainMenu: React.FC = () => {
   const handleLogout = () => {
     playUiSound('CLICK');
     if (hasActiveSession) {
-      if (window.confirm("Logging out will end your current session. All progress is saved to your profile.")) {
+      if (window.confirm(t.LOGOUT_CONFIRM)) {
         logout();
       }
     } else {
@@ -177,12 +176,22 @@ const MainMenu: React.FC = () => {
     <div className="relative w-full h-full flex items-center justify-center pointer-events-auto">
       
       {/* Top Left - Sound Toggle */}
-      <button 
-        onClick={() => { toggleMute(); playUiSound('CLICK'); }}
-        className="absolute top-6 left-6 p-3 bg-slate-900/50 hover:bg-slate-800 backdrop-blur rounded-full text-slate-400 hover:text-white transition-all border border-slate-800 z-50"
-      >
-        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-      </button>
+      <div className="absolute top-6 left-6 flex gap-2 z-50">
+        <button 
+          onClick={() => { toggleMute(); playUiSound('CLICK'); }}
+          className="p-3 bg-slate-900/50 hover:bg-slate-800 backdrop-blur rounded-full text-slate-400 hover:text-white transition-all border border-slate-800"
+        >
+          {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+        </button>
+        
+        {/* Language Toggle */}
+        <button 
+          onClick={() => setLanguage(language === 'EN' ? 'RU' : 'EN')}
+          className="p-3 bg-slate-900/50 hover:bg-slate-800 backdrop-blur rounded-full text-slate-400 hover:text-white transition-all border border-slate-800 flex items-center justify-center gap-1 font-bold text-xs"
+        >
+          <Globe className="w-4 h-4" /> {language}
+        </button>
+      </div>
 
       {/* AUTH WIDGET (Top Right) */}
       <div className="absolute top-6 right-6 flex flex-col items-end gap-4 z-50 pointer-events-auto">
@@ -193,28 +202,28 @@ const MainMenu: React.FC = () => {
               onClick={() => { setAuthMode('GUEST'); resetForm(); playUiSound('CLICK'); }}
               className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700 backdrop-blur-md rounded-lg border border-slate-600 text-slate-300 hover:text-white transition-all text-xs font-bold uppercase tracking-wider"
             >
-              <Ghost className="w-4 h-4" /> Guest
+              <Ghost className="w-4 h-4" /> {t.AUTH_GUEST}
             </button>
              <button 
               onMouseEnter={() => playUiSound('HOVER')}
               onClick={() => { setAuthMode('LOGIN'); resetForm(); playUiSound('CLICK'); }}
               className="cursor-pointer px-4 py-2 bg-slate-900/50 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 text-xs font-bold uppercase tracking-wider transition-colors"
             >
-              Login
+              {t.AUTH_LOGIN}
             </button>
              <button 
               onMouseEnter={() => playUiSound('HOVER')}
               onClick={() => { setAuthMode('REGISTER'); resetForm(); playUiSound('CLICK'); }}
               className="cursor-pointer px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-200 rounded-lg border border-indigo-500/30 text-xs font-bold uppercase tracking-wider transition-colors"
             >
-              Register
+              {t.AUTH_REGISTER}
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-4 bg-slate-900/90 p-2 pl-4 rounded-full border border-slate-700 shadow-2xl">
             <div className="flex flex-col items-end">
               <span className="text-sm font-bold text-white leading-tight">{user.nickname}</span>
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest">{user.isGuest ? 'Guest Access' : 'Commander'}</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-widest">{user.isGuest ? t.AUTH_GUEST : 'Commander'}</span>
             </div>
             {renderAvatar(user.avatarColor, user.avatarIcon, 'md')}
             <div className="h-8 w-px bg-slate-700 mx-1"></div>
@@ -236,10 +245,10 @@ const MainMenu: React.FC = () => {
         {/* Title */}
         <div className="text-center mb-6"> 
           <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-amber-600 italic tracking-tighter drop-shadow-[0_0_25px_rgba(245,158,11,0.4)]">
-            HexQuest
+            {t.TITLE}
           </h1>
           <p className="text-xs text-slate-500 font-mono tracking-[0.6em] uppercase mt-2 opacity-60">
-            Strategic Expansion Protocol
+            {t.SUBTITLE}
           </p>
         </div>
 
@@ -250,44 +259,44 @@ const MainMenu: React.FC = () => {
             onClick={handleCampaignClick}
             primary 
             icon={<BookOpen className="w-5 h-5 fill-current" />}
-            label="Campaign"
-            subLabel="Start Tutorial"
+            label={t.CAMPAIGN}
+            subLabel={t.CAMPAIGN_SUB}
           />
 
           <MenuButton 
             onClick={handleNewGameClick}
             icon={<Play className="w-5 h-5" />}
-            label="Skirmish"
-            subLabel="Custom Simulation"
+            label={t.SKIRMISH}
+            subLabel={t.SKIRMISH_SUB}
           />
 
           {hasActiveSession && (
              <MenuButton 
               onClick={() => { setUIState('GAME'); playUiSound('CLICK'); }}
               icon={<ArrowRight className="w-5 h-5" />}
-              label="Resume Session"
-              subLabel="Return to active command"
+              label={t.RESUME}
+              subLabel={t.RESUME_SUB}
             />
           )}
 
           <MenuButton 
             onClick={() => { setUIState('LEADERBOARD'); playUiSound('CLICK'); }}
             icon={<Trophy className="w-5 h-5" />}
-            label="Leaderboard"
-            subLabel="Global rankings"
+            label={t.LEADERBOARD}
+            subLabel={t.LEADERBOARD_SUB}
           />
 
           {hasActiveSession && (
             <MenuButton 
               onClick={() => {
                  playUiSound('CLICK');
-                 if (window.confirm("Are you sure you want to end this session? The map will be closed.")) {
+                 if (window.confirm(t.ABANDON_CONFIRM)) {
                     abandonSession();
                  }
               }}
               icon={<X className="w-5 h-5" />}
-              label="End Session"
-              subLabel="Close current map"
+              label={t.END_SESSION}
+              subLabel={t.END_SESSION_SUB}
               danger
             />
           )}
@@ -295,12 +304,12 @@ const MainMenu: React.FC = () => {
           <MenuButton 
             onClick={() => {
               playUiSound('CLICK');
-              if (hasActiveSession && !window.confirm("Active session will be closed. Exit?")) return;
+              if (hasActiveSession && !window.confirm(t.ABANDON_CONFIRM)) return;
               window.close();
               alert("Application Exit Simulated");
             }}
             icon={<LogOut className="w-5 h-5" />}
-            label="Exit to Desktop"
+            label={t.EXIT}
           />
         </div>
       </div>
@@ -322,7 +331,7 @@ const MainMenu: React.FC = () => {
               {authMode === 'LOGIN' && <LogIn className="w-6 h-6 text-indigo-400" />}
               {authMode === 'REGISTER' && <UserCircle className="w-6 h-6 text-indigo-400" />}
               
-              {authMode === 'GUEST' ? 'Guest Identity' : (authMode === 'LOGIN' ? 'Access Terminal' : 'New Commission')}
+              {authMode === 'GUEST' ? t.MODAL_GUEST_TITLE : (authMode === 'LOGIN' ? t.MODAL_LOGIN_TITLE : t.MODAL_REGISTER_TITLE)}
             </h2>
 
             <div className="space-y-4">
@@ -334,7 +343,7 @@ const MainMenu: React.FC = () => {
 
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
-                  {authMode === 'LOGIN' ? 'Username' : 'Callsign'}
+                  {t.INPUT_NAME}
                 </label>
                 <input 
                   type="text" 
@@ -349,7 +358,7 @@ const MainMenu: React.FC = () => {
               {authMode !== 'GUEST' && (
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">
-                    Password
+                    {t.INPUT_PASS}
                   </label>
                   <div className="relative">
                     <input 
@@ -406,7 +415,7 @@ const MainMenu: React.FC = () => {
                 onMouseEnter={() => playUiSound('HOVER')}
                 className="cursor-pointer w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 mt-4"
               >
-                {authMode === 'LOGIN' ? 'Authenticate' : 'Establish Link'}
+                {authMode === 'LOGIN' ? t.BTN_LOGIN : (authMode === 'GUEST' ? t.BTN_GUEST : t.BTN_REGISTER)}
               </button>
             </div>
           </div>
@@ -422,9 +431,9 @@ const MainMenu: React.FC = () => {
 
              <div className="text-center">
                 <h2 className="text-3xl font-black text-white mb-1 uppercase tracking-tight flex items-center justify-center gap-3">
-                  <Target className="w-8 h-8 text-amber-500" /> Mission Config
+                  <Target className="w-8 h-8 text-amber-500" /> {t.CONFIG_TITLE}
                 </h2>
-                <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">Select Operational Parameters</p>
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">{t.CONFIG_SUB}</p>
              </div>
 
              {/* DIFFICULTY SELECTOR */}
@@ -437,21 +446,21 @@ const MainMenu: React.FC = () => {
                      onClick={() => { setDifficulty('EASY'); playUiSound('CLICK'); }}
                      className={`flex-1 py-3 px-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${difficulty === 'EASY' ? 'bg-emerald-900/30 border-emerald-500 text-emerald-100' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-600'}`}
                    >
-                      <span className="font-bold text-xs uppercase">Cadet</span>
+                      <span className="font-bold text-xs uppercase">{t.DIFF_EASY}</span>
                       <span className="text-[9px] opacity-70">1 Upgrade Point</span>
                    </button>
                    <button 
                      onClick={() => { setDifficulty('MEDIUM'); playUiSound('CLICK'); }}
                      className={`flex-1 py-3 px-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${difficulty === 'MEDIUM' ? 'bg-amber-900/30 border-amber-500 text-amber-100' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-600'}`}
                    >
-                      <span className="font-bold text-xs uppercase">Veteran</span>
+                      <span className="font-bold text-xs uppercase">{t.DIFF_MEDIUM}</span>
                       <span className="text-[9px] opacity-70">2 Upgrade Points</span>
                    </button>
                    <button 
                      onClick={() => { setDifficulty('HARD'); playUiSound('CLICK'); }}
                      className={`flex-1 py-3 px-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${difficulty === 'HARD' ? 'bg-red-900/30 border-red-500 text-red-100' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-600'}`}
                    >
-                      <span className="font-bold text-xs uppercase">Elite</span>
+                      <span className="font-bold text-xs uppercase">{t.DIFF_HARD}</span>
                       <span className="text-[9px] opacity-70">3 Upgrade Points</span>
                    </button>
                </div>
@@ -506,13 +515,13 @@ const MainMenu: React.FC = () => {
                  onClick={() => { setShowMissionConfig(false); playUiSound('CLICK'); }}
                  className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors uppercase text-xs tracking-wider"
                >
-                 Cancel
+                 {t.BTN_CANCEL}
                </button>
                <button 
                  onClick={confirmMissionStart}
                  className="flex-1 py-4 bg-white hover:bg-slate-200 text-slate-900 font-bold rounded-xl shadow-lg transition-colors uppercase text-xs tracking-wider"
                >
-                 Initialize Mission
+                 {t.BTN_START}
                </button>
              </div>
 

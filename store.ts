@@ -1,16 +1,6 @@
 
-
-
-
-
-
-
-
-
-
-
 import { create } from 'zustand';
-import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep } from './types.ts';
+import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep, Language } from './types.ts';
 import { GAME_CONFIG } from './rules/config.ts';
 import { getHexKey, getNeighbors, findPath } from './services/hexUtils.ts';
 import { GameEngine } from './engine/GameEngine.ts';
@@ -39,6 +29,7 @@ interface GameStore extends GameState {
   session: SessionState | null;
 
   setUIState: (state: UIState) => void;
+  setLanguage: (lang: Language) => void;
   loginAsGuest: (n: string, c: string, i: string) => void;
   registerUser: (n: string, p: string, c: string, i: string) => AuthResponse;
   loginUser: (n: string, p: string) => AuthResponse;
@@ -146,8 +137,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hasActiveSession: false,
   isMuted: false,
   session: null,
+  language: 'EN', // Default
   
   setUIState: (uiState) => set({ uiState }),
+  setLanguage: (language) => {
+      audioService.play('UI_CLICK');
+      set({ language });
+  },
   
   loginAsGuest: (nickname, avatarColor, avatarIcon) => {
     audioService.play('UI_CLICK');
@@ -260,16 +256,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
               return;
           }
           
-          // Enforce targets (Skip for BUILD_FOUNDATION/UPGRADE_CENTER_3 to give freedom)
+          // Enforce targets
           if (session.tutorialStep === 'MOVE_1') {
-              if (tq !== 1 || tr !== -1) { audioService.play('ERROR'); return; }
+              if (tq !== 1 || tr !== -1) { 
+                  audioService.play('ERROR'); 
+                  set({ toast: { message: "Wrong Sector. Target marked in BLUE (1, -1)", type: 'error', timestamp: Date.now() } });
+                  return; 
+              }
           }
           if (session.tutorialStep === 'MOVE_2') {
-              if (tq !== 0 || tr !== -1) { audioService.play('ERROR'); return; }
+              if (tq !== 0 || tr !== -1) { 
+                  audioService.play('ERROR'); 
+                  set({ toast: { message: "Wrong Sector. Target marked in BLUE (0, -1)", type: 'error', timestamp: Date.now() } });
+                  return; 
+              }
           }
           if (session.tutorialStep === 'MOVE_3') {
-              if (tq !== 0 || tr !== 0) { audioService.play('ERROR'); return; }
+              if (tq !== 0 || tr !== 0) { 
+                  audioService.play('ERROR'); 
+                  set({ toast: { message: "Return to Center (0, 0)", type: 'error', timestamp: Date.now() } });
+                  return; 
+              }
           }
+          // Note: BUILD_FOUNDATION and UPGRADE_CENTER_3 allow free movement to accomplish goals
       }
 
       if (pendingConfirmation) {
@@ -392,6 +401,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       // TUTORIAL: CHECK FOUNDATION COMPLETION (3x L2 Neighbors)
+      // Transition only if strictly in this step
       if (result.state.tutorialStep === 'BUILD_FOUNDATION') {
           const centerNeighbors = getNeighbors(0, 0);
           const l2Count = centerNeighbors.filter(n => {
@@ -400,9 +410,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }).length;
 
           if (l2Count >= 3) {
-              // Transition to final upgrade
-              // Since we are inside tick handling, `result.state` is the result of the tick *just processed*.
-              // We should mutate the result state here to update UI immediately.
               engine.setTutorialStep('UPGRADE_CENTER_3');
               result.state.tutorialStep = 'UPGRADE_CENTER_3'; 
               audioService.play('SUCCESS');
@@ -411,7 +418,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       // --- FINAL TUTORIAL STEP CHECK: LEVEL 3 VICTORY ---
       // We check this every tick to ensure we don't miss the event
-      if (result.state.tutorialStep === 'UPGRADE_CENTER_3' || result.state.tutorialStep === 'FREE_PLAY') {
+      if (result.state.tutorialStep === 'UPGRADE_CENTER_3' || result.state.tutorialStep === 'FREE_PLAY' || result.state.tutorialStep === 'BUILD_FOUNDATION') {
           if (result.state.player.playerLevel >= 3) {
               // Check if we already triggered animation
               if (engine.state.tutorialStep !== 'VICTORY_ANIMATION') {
@@ -420,7 +427,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   // DELAYED VICTORY TRIGGER (3 Seconds)
                   setTimeout(() => {
                       // Force victory status in engine if still in animation state
-                      // Must verify engine is still valid (player didn't quit)
                       if (engine && engine.state.tutorialStep === 'VICTORY_ANIMATION') {
                           engine.triggerVictory();
                           set({ session: engine.state });
@@ -448,7 +454,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
                }
                
                // TUTORIAL PROGRESSION ON ACTIONS
-               
                if (event.type === 'MOVE_COMPLETE') {
                    switch(result.state.tutorialStep) {
                        case 'MOVE_1': get().advanceTutorial('ACQUIRE_1'); break;
