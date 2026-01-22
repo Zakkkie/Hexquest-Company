@@ -1,8 +1,6 @@
 
 
 
-
-
 import React, { useEffect, useCallback, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { Stage, Layer, Line, Group, Text, Circle } from 'react-konva';
 import Konva from 'konva';
@@ -83,65 +81,6 @@ const DustCloud: React.FC<VisualParticle & { onComplete: (id: number) => void }>
     );
 });
 
-// --- FIREWORKS ---
-const Firework: React.FC<VisualParticle & { onComplete: (id: number) => void }> = React.memo(({ id, x, y, color, onComplete }) => {
-    const groupRef = useRef<Konva.Group>(null);
-
-    useEffect(() => {
-        const node = groupRef.current;
-        if (!node) return;
-
-        // Animate Up (Launch)
-        const launchTween = new Konva.Tween({
-            node: node,
-            y: y - 150, // Fly up
-            duration: 0.5,
-            easing: Konva.Easings.EaseOut,
-            onFinish: () => {
-                // EXPLODE
-                const parts = node.find('Circle');
-                parts.forEach((p) => {
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = 30 + Math.random() * 30;
-                    
-                    new Konva.Tween({
-                        node: p,
-                        x: Math.cos(angle) * dist,
-                        y: Math.sin(angle) * dist,
-                        opacity: 0,
-                        duration: 0.5,
-                        easing: Konva.Easings.EaseOut
-                    }).play();
-                });
-            }
-        });
-        launchTween.play();
-
-        // Cleanup timer
-        const t = setTimeout(() => {
-            onComplete(id);
-        }, 1200);
-
-        return () => clearTimeout(t);
-    }, [id, y, onComplete]);
-
-    return (
-        <Group ref={groupRef} x={x} y={y}>
-            {/* Trail/Center */}
-            <Circle radius={2} fill="white" />
-            {/* Particles */}
-            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
-                <Circle 
-                    key={i}
-                    x={0} y={0}
-                    radius={3}
-                    fill={color}
-                />
-            ))}
-        </Group>
-    );
-});
-
 
 const FloatingEffect: React.FC<{ effect: FloatingText; rotation: number }> = React.memo(({ effect, rotation }) => {
     const groupRef = useRef<Konva.Group>(null);
@@ -202,9 +141,6 @@ const GameView: React.FC = () => {
   const bots = useGameStore(state => state.session?.bots);
   const effects = useGameStore(state => state.session?.effects); // Visual Effects
   const isPlayerGrowing = useGameStore(state => state.session?.isPlayerGrowing);
-  const tutorialStep = useGameStore(state => state.session?.tutorialStep);
-  const winCondition = useGameStore(state => state.session?.winCondition);
-  const gameStatus = useGameStore(state => state.session?.gameStatus);
   
   // Pending Confirmation Logic
   const pendingConfirmation = useGameStore(state => state.pendingConfirmation);
@@ -213,7 +149,6 @@ const GameView: React.FC = () => {
   const tick = useGameStore(state => state.tick);
   const movePlayer = useGameStore(state => state.movePlayer);
   const hideToast = useGameStore(state => state.hideToast);
-  const checkTutorialCamera = useGameStore(state => state.checkTutorialCamera);
   const toast = useGameStore(state => state.toast);
   
   if (!grid || !player || !bots) return null;
@@ -225,12 +160,10 @@ const GameView: React.FC = () => {
   const targetRotationRef = useRef(0); 
   const isRotating = useRef(false);
   const lastMouseX = useRef(0);
-  const rotationAccumulator = useRef(0); // Track total rotation for tutorial
   const movementTracker = useRef<Record<string, { lastQ: number; lastR: number; fromQ: number; fromR: number; startTime: number }>>({});
   
   // Local Particle State (Ephemeral)
   const [particles, setParticles] = useState<VisualParticle[]>([]);
-  const [fireworks, setFireworks] = useState<VisualParticle[]>([]);
 
   // Interaction State
   const [hoveredHexId, setHoveredHexId] = useState<string | null>(null);
@@ -255,28 +188,6 @@ const GameView: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // --- FIREWORKS LOOP ---
-  useEffect(() => {
-      let fwInterval: number | null = null;
-      if (tutorialStep === 'VICTORY_ANIMATION' || gameStatus === 'VICTORY') {
-          fwInterval = window.setInterval(() => {
-              const id = Date.now() + Math.random();
-              const colors = ['#ef4444', '#eab308', '#3b82f6', '#10b981', '#a855f7'];
-              const color = colors[Math.floor(Math.random() * colors.length)];
-              
-              // Random pos near player
-              const pPos = hexToPixel(player.q, player.r, cameraRotation);
-              const offsetX = (Math.random() - 0.5) * 400;
-              const offsetY = (Math.random() - 0.5) * 300;
-
-              setFireworks(prev => [...prev, { id, x: pPos.x + offsetX, y: pPos.y + offsetY, color }]);
-          }, 300); // 3 per second roughly
-      }
-      return () => {
-          if (fwInterval) clearInterval(fwInterval);
-      };
-  }, [tutorialStep, gameStatus, player.q, player.r, cameraRotation]);
-
   const spawnDust = useCallback((x: number, y: number, color: string) => {
       const id = Date.now() + Math.random();
       // Use a light grey/white for generic dust, or color tinted
@@ -285,10 +196,6 @@ const GameView: React.FC = () => {
 
   const removeParticle = useCallback((id: number) => {
       setParticles(prev => prev.filter(p => p.id !== id));
-  }, []);
-
-  const removeFirework = useCallback((id: number) => {
-      setFireworks(prev => prev.filter(p => p.id !== id));
   }, []);
 
   const rotateCamera = useCallback((direction: 'left' | 'right') => {
@@ -370,11 +277,6 @@ const GameView: React.FC = () => {
         const deltaX = e.evt.clientX - lastMouseX.current;
         lastMouseX.current = e.evt.clientX;
         const sensitivity = 0.5;
-        
-        // Track rotation for tutorial
-        rotationAccumulator.current += Math.abs(deltaX);
-        checkTutorialCamera(rotationAccumulator.current);
-
         setCameraRotation(prev => {
             const newRot = prev + deltaX * sensitivity;
             targetRotationRef.current = newRot; 
@@ -416,18 +318,6 @@ const GameView: React.FC = () => {
       const target = pendingConfirmation.data.path[pendingConfirmation.data.path.length - 1];
       return getHexKey(target.q, target.r);
   }, [pendingConfirmation]);
-
-  // Determine low-level highlighting target for tutorial
-  const lowLevelHighlightTarget = useMemo(() => {
-      if (tutorialStep !== 'UPGRADE_CENTER_3') return null;
-      // Find a nearby Level 0 hex to highlight if momentum is needed
-      const nearby = getNeighbors(player.q, player.r);
-      const target = nearby.find(n => {
-          const h = grid[getHexKey(n.q, n.r)];
-          return h && h.currentLevel === 0 && h.maxLevel === 0;
-      });
-      return target || null;
-  }, [tutorialStep, grid, player.q, player.r]);
 
   const renderList = useMemo(() => {
      const items: RenderItem[] = [];
@@ -578,35 +468,6 @@ const GameView: React.FC = () => {
                     const isOccupied = (item.q === player.q && item.r === player.r) || safeBots.some(b => b.q === item.q && b.r === item.r);
                     const isPending = item.id === pendingTargetKey;
                     
-                    // Special highlight for tutorial target
-                    let isTutorialTarget = false;
-                    if (tutorialStep === 'MOVE_1') {
-                        if (item.q === 1 && item.r === -1) isTutorialTarget = true;
-                    } else if (tutorialStep === 'MOVE_2') {
-                        if (item.q === 0 && item.r === -1) isTutorialTarget = true;
-                    } else if (tutorialStep === 'MOVE_3') {
-                        if (item.q === 0 && item.r === 0) isTutorialTarget = true;
-                    } else if (tutorialStep === 'BUILD_FOUNDATION') {
-                        // Highlight neighbors of (0,0) to indicate foundation zone
-                        const centerNeighbors = getNeighbors(0,0);
-                        if (centerNeighbors.some(n => n.q === item.q && n.r === item.r)) {
-                             isTutorialTarget = true;
-                        }
-                    } else if (tutorialStep === 'UPGRADE_CENTER_3') {
-                        const queueSize = winCondition?.queueSize || 1;
-                        const hasMomentum = player.recentUpgrades.length >= queueSize;
-                        
-                        // If has momentum, highlight CENTER
-                        if (hasMomentum) {
-                            if (item.q === 0 && item.r === 0) isTutorialTarget = true;
-                        } else {
-                            // If NO momentum, highlight nearby L0 hex to guide acquiring it
-                            if (lowLevelHighlightTarget && item.q === lowLevelHighlightTarget.q && item.r === lowLevelHighlightTarget.r) {
-                                isTutorialTarget = true;
-                            }
-                        }
-                    }
-
                     return (
                         <Hexagon 
                             key={item.id} 
@@ -619,7 +480,6 @@ const GameView: React.FC = () => {
                             pendingCost={isPending && pendingConfirmation ? pendingConfirmation.data.costCoins : null}
                             onHexClick={handleHexClick} 
                             onHover={setHoveredHexId} 
-                            isTutorialTarget={isTutorialTarget}
                         />
                     );
                 } else if (item.type === 'UNIT') {
@@ -649,11 +509,6 @@ const GameView: React.FC = () => {
             {/* Visual Effects Layer (Particles & Text) */}
             {particles.map(p => (
                 <DustCloud key={p.id} {...p} onComplete={removeParticle} />
-            ))}
-            
-            {/* FIREWORKS (Victory) */}
-            {fireworks.map(f => (
-                <Firework key={f.id} {...f} onComplete={removeFirework} />
             ))}
 
             {effects && effects.map((eff) => (

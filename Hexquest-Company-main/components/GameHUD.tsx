@@ -9,10 +9,7 @@
 
 
 
-
-
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStore } from '../store.ts';
 import { getHexKey, getNeighbors, getSecondsToGrow, findPath } from '../services/hexUtils.ts';
 import { checkGrowthCondition } from '../rules/growth.ts';
@@ -23,160 +20,66 @@ import { CAMPAIGN_LEVELS } from '../rules/campaign.ts';
 import { 
   AlertCircle, Pause, Trophy, Coins, Footprints, AlertTriangle, LogOut,
   Crown, TrendingUp, ChevronUp, ChevronDown, Shield, MapPin,
-  RotateCcw, RotateCw, CheckCircle2, ChevronsUp, Lock, Volume2, VolumeX, XCircle, Zap, RefreshCw, Hand, Navigation, X, ArrowRight, Skull, MousePointer2, Move3d, ArrowDown
+  RotateCcw, RotateCw, CheckCircle2, ChevronsUp, Lock, Volume2, VolumeX, XCircle, Zap, RefreshCw, Hand, Navigation, X, ArrowRight
 } from 'lucide-react';
 
 // TUTORIAL OVERLAY COMPONENT
-const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({ step, onNext }) => {
-    // Local state to allow user to dismiss "annoying" text boxes while keeping the step active
-    const [isVisible, setIsVisible] = useState(true);
-    
-    // Reset visibility when step changes
-    useEffect(() => {
-        setIsVisible(true);
-    }, [step]);
-
+const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void; onClose: () => void }> = ({ step, onNext, onClose }) => {
     if (step === 'NONE' || step === 'FREE_PLAY') return null;
 
-    const buttonOffsetClass = "left-[calc(50%+50px)]";
-    
-    // Check momentum for final step
-    const player = useGameStore(state => state.session?.player);
-    const winCondition = useGameStore(state => state.session?.winCondition);
-    const queueSize = winCondition?.queueSize || 1;
-    const hasUpgradePoint = player && player.recentUpgrades.length >= queueSize;
+    let text = "";
+    let highlightArea: 'CENTER' | 'CONTROLS' | 'HEX' = 'CENTER';
 
-    const handleDismiss = () => {
-        setIsVisible(false);
-    };
+    switch(step) {
+        case 'WELCOME':
+            text = "Welcome Commander. This is a simulation. Right-click and drag to rotate the camera.";
+            highlightArea = 'CENTER';
+            break;
+        case 'MOVE_CAMERA': // Implicitly handled by Welcome for simplicity or can be added
+             text = "Good. Now, you need to expand. Click an adjacent hex to move. Movement costs 1 Move Point.";
+             highlightArea = 'HEX';
+             break;
+        case 'MOVE_UNIT': // Waiting for move
+             text = "Select a destination. Movement consumes Moves or Credits.";
+             highlightArea = 'HEX';
+             break;
+        case 'EXPLAIN_ACQUIRE':
+             text = "This sector is neutral (Level 0). Click the Amber button below to Acquire it.";
+             highlightArea = 'CONTROLS';
+             break;
+        case 'EXPLAIN_QUEUE':
+             text = "Good work. Notice the Queue in the top bar. You cannot upgrade the same sector twice in a row. Move to a new sector to continue expanding.";
+             highlightArea = 'CENTER';
+             break;
+    }
 
     return (
-        <div className="absolute inset-0 z-[60] pointer-events-none select-none overflow-hidden">
-            {/* Darken Background slightly for focus */}
-            <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 z-[60] pointer-events-none flex items-center justify-center">
+            {/* Darken Background for focus if needed, but let's keep it light for playability */}
+            <div className={`relative bg-slate-900/90 border border-amber-500/50 p-6 rounded-2xl shadow-[0_0_30px_rgba(245,158,11,0.3)] max-w-md text-center pointer-events-auto transition-all duration-500 ${highlightArea === 'CONTROLS' ? 'translate-y-[-150px]' : ''}`}>
+                 
+                 {/* Close Button */}
+                 <button 
+                    onClick={onClose}
+                    className="absolute top-2 right-2 p-1 text-slate-500 hover:text-white transition-colors rounded-full hover:bg-slate-800"
+                    title="Skip Tutorial"
+                 >
+                    <X className="w-4 h-4" />
+                 </button>
 
-            {/* STEP 1: WELCOME */}
-            {step === 'WELCOME' && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-                    <div className="bg-slate-900/90 border border-amber-500 p-8 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.3)] text-center max-w-sm">
-                        <h2 className="text-2xl font-black text-amber-500 mb-2 uppercase">Training Mode</h2>
-                        <p className="text-slate-300 text-sm mb-6">Commander, initializing manual expansion protocol. Build supports to reach high ground.</p>
-                        <button onClick={onNext} className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-slate-900 font-bold rounded-xl uppercase tracking-wider transition-colors shadow-lg">
-                            Start Simulation
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* STEP 2: CAMERA */}
-            {step === 'CAMERA_ROTATE' && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-pulse">
-                    <Move3d className="w-16 h-16 text-white mb-2 drop-shadow-[0_0_10px_rgba(0,0,0,1)]" />
-                    <div className="bg-black/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur">
-                        <p className="text-white font-bold text-lg uppercase tracking-widest whitespace-nowrap">Right Click + Drag</p>
-                    </div>
-                    <p className="text-slate-400 text-xs mt-1 font-mono uppercase">Rotate Camera</p>
-                </div>
-            )}
-
-            {/* MOVEMENTS */}
-            {step === 'MOVE_1' && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div className="animate-bounce">
-                        <MousePointer2 className="w-12 h-12 text-blue-400 fill-blue-400/20 rotate-[-15deg] drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
-                    </div>
-                    <div className="mt-2 bg-blue-900/80 px-4 py-2 rounded-xl border border-blue-500/50 backdrop-blur">
-                        <span className="text-blue-100 font-bold uppercase tracking-wider text-sm">Select Sector A</span>
-                    </div>
-                </div>
-            )}
-
-            {step === 'MOVE_2' && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div className="animate-bounce">
-                        <MousePointer2 className="w-12 h-12 text-blue-400 fill-blue-400/20 rotate-[15deg] drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
-                    </div>
-                    <div className="mt-2 bg-blue-900/80 px-4 py-2 rounded-xl border border-blue-500/50 backdrop-blur">
-                        <span className="text-blue-100 font-bold uppercase tracking-wider text-sm">Select Sector B</span>
-                    </div>
-                </div>
-            )}
-
-            {step === 'MOVE_3' && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div className="animate-bounce">
-                        <Footprints className="w-12 h-12 text-emerald-400 fill-emerald-400/20 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]" />
-                    </div>
-                    <div className="mt-2 bg-emerald-900/80 px-4 py-2 rounded-xl border border-emerald-500/50 backdrop-blur text-center">
-                        <p className="text-emerald-100 font-bold uppercase tracking-wider text-sm">Return to Center</p>
-                    </div>
-                </div>
-            )}
-
-            {/* ACQUISITIONS */}
-            {(step === 'ACQUIRE_1' || step === 'ACQUIRE_2' || step === 'ACQUIRE_3') && (
-                <div className={`absolute bottom-36 ${buttonOffsetClass} -translate-x-1/2 flex flex-col items-center`}>
-                    <div className="bg-amber-900/80 px-4 py-2 rounded-xl border border-amber-500/50 backdrop-blur mb-2">
-                        <span className="text-amber-100 font-bold uppercase tracking-wider text-sm">Acquire</span>
-                    </div>
-                    <ArrowDown className="w-12 h-12 text-amber-500 animate-bounce drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-                </div>
-            )}
-
-            {/* UPGRADE CENTER 2 */}
-            {step === 'UPGRADE_CENTER_2' && (
-                <div className={`absolute bottom-36 ${buttonOffsetClass} -translate-x-1/2 flex flex-col items-center`}>
-                    <div className="bg-indigo-900/80 px-4 py-2 rounded-xl border border-indigo-500/50 backdrop-blur mb-2 text-center">
-                        <span className="text-indigo-100 font-bold uppercase tracking-wider text-sm">Upgrade L2</span>
-                        <p className="text-[9px] text-indigo-300">Requires L1 Supports</p>
-                    </div>
-                    <ArrowDown className="w-12 h-12 text-indigo-500 animate-bounce drop-shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
-                </div>
-            )}
-
-            {/* FREE FORM FOUNDATION */}
-            {step === 'BUILD_FOUNDATION' && isVisible && (
-                <div className="absolute top-20 left-1/2 -translate-x-1/2 w-80 pointer-events-auto">
-                    <div className="bg-slate-900/90 border border-emerald-500 p-4 rounded-xl shadow-[0_0_30px_rgba(16,185,129,0.2)] text-center animate-in fade-in slide-in-from-top-4 relative">
-                        <button onClick={handleDismiss} className="absolute top-2 right-2 text-slate-500 hover:text-white p-1"><X className="w-3 h-3"/></button>
-                        <h3 className="text-lg font-bold text-emerald-400 mb-1 uppercase">Phase 2: Independence</h3>
-                        <p className="text-slate-300 text-xs leading-relaxed mb-2">
-                            To reach <span className="text-purple-400 font-bold">Level 3</span>, the center needs three <span className="text-indigo-400 font-bold">Level 2</span> neighbors.
-                        </p>
-                        <p className="text-slate-400 text-[10px] uppercase font-mono">
-                            Task: Cycle upgrades to clear the queue and build the foundation.
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* UPGRADE CENTER 3 (FINAL STEP) */}
-            {step === 'UPGRADE_CENTER_3' && isVisible && (
-                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 flex flex-col items-center gap-4 pointer-events-auto">
-                    {hasUpgradePoint ? (
-                        <div className="bg-indigo-900/90 border border-indigo-400 p-4 rounded-xl shadow-[0_0_50px_rgba(99,102,241,0.4)] text-center animate-bounce relative w-full">
-                            <button onClick={handleDismiss} className="absolute top-2 right-2 text-indigo-300 hover:text-white p-1"><X className="w-3 h-3"/></button>
-                            <h3 className="text-lg font-bold text-indigo-300 mb-1 uppercase">Foundation Secure!</h3>
-                            <p className="text-white text-xs leading-relaxed">
-                                Return to the center and upgrade to <span className="font-bold text-indigo-200">Level 3</span>.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="bg-red-950/90 border border-red-500 p-4 rounded-xl shadow-[0_0_50px_rgba(239,68,68,0.4)] text-center relative w-full">
-                            <button onClick={handleDismiss} className="absolute top-2 right-2 text-red-400 hover:text-white p-1"><X className="w-3 h-3"/></button>
-                            <h3 className="text-lg font-bold text-red-400 mb-1 uppercase flex items-center justify-center gap-2">
-                                <AlertTriangle className="w-5 h-5"/> Cycle Empty
-                            </h3>
-                            <p className="text-white text-xs leading-relaxed mb-2">
-                                Missing Upgrade Point! You cannot upgrade the same hex consecutively.
-                            </p>
-                            <div className="bg-black/40 p-2 rounded text-red-200 text-[10px] font-mono">
-                                OBJECTIVE: Acquire a neutral sector (L0 -> L1) to generate momentum.
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+                 <div className="flex flex-col items-center gap-3 pt-2">
+                     <div className="p-3 bg-amber-500/20 rounded-full animate-pulse">
+                         <Navigation className="w-6 h-6 text-amber-400" />
+                     </div>
+                     <p className="text-white font-bold text-sm leading-relaxed">{text}</p>
+                     
+                     {step === 'WELCOME' && (
+                         <button onClick={onNext} className="mt-2 px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-slate-900 font-bold text-xs uppercase">
+                             Proceed
+                         </button>
+                     )}
+                 </div>
+            </div>
         </div>
     );
 };
@@ -365,40 +268,22 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
 
   // Tutorial Helper
   const handleNextStep = () => {
-      if (tutorialStep === 'WELCOME') advanceTutorial('CAMERA_ROTATE');
+      if (tutorialStep === 'WELCOME') advanceTutorial('MOVE_UNIT');
+      if (tutorialStep === 'EXPLAIN_QUEUE') advanceTutorial('FREE_PLAY');
   };
 
-  // Winner Calculation for End Screen
-  const winner = useMemo(() => {
-      if (gameStatus === 'VICTORY') return player;
-      if (gameStatus === 'DEFEAT' && winCondition) {
-          // Find the bot that met the condition
-          const w = safeBots.find(b => {
-              const reachedLevel = b.playerLevel >= winCondition.targetLevel;
-              const reachedCoins = b.totalCoinsEarned >= winCondition.targetCoins;
-              if (winCondition.winType === 'AND') return reachedLevel && reachedCoins;
-              return reachedLevel || reachedCoins;
-          });
-          return w || safeBots[0]; // Fallback to first bot if logic gap
-      }
-      return null;
-  }, [gameStatus, player, safeBots, winCondition]);
+  const handleCloseTutorial = () => {
+      advanceTutorial('FREE_PLAY');
+  };
 
-  const isCampaignLevel = winCondition && winCondition.levelId >= 0;
-  const showNextLevel = gameStatus === 'VICTORY' && isCampaignLevel && CAMPAIGN_LEVELS.some(l => l.levelId === winCondition.levelId + 1);
-  const isCampaignComplete = gameStatus === 'VICTORY' && isCampaignLevel && !showNextLevel;
-  const showRetry = gameStatus === 'DEFEAT' && isCampaignLevel;
-
-  const isTutorialActive = tutorialStep && tutorialStep !== 'NONE' && tutorialStep !== 'FREE_PLAY';
-  // Highlight buttons if in action step
-  const isActionStep = ['ACQUIRE_1', 'ACQUIRE_2', 'ACQUIRE_3', 'UPGRADE_CENTER_2', 'UPGRADE_CENTER_3'].includes(tutorialStep);
-  const shouldDimControls = isTutorialActive && !isActionStep && tutorialStep !== 'BUILD_FOUNDATION';
+  const showNextLevel = gameStatus === 'VICTORY' && winCondition && winCondition.levelId >= 0 && CAMPAIGN_LEVELS.some(l => l.levelId === winCondition.levelId + 1);
+  const showRetry = gameStatus === 'DEFEAT' && winCondition && winCondition.levelId >= 0;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-30 select-none">
       
       {/* TUTORIAL OVERLAY */}
-      {tutorialStep && <TutorialOverlay step={tutorialStep} onNext={handleNextStep} />}
+      {tutorialStep && <TutorialOverlay step={tutorialStep} onNext={handleNextStep} onClose={handleCloseTutorial} />}
 
       {/* HEADER */}
       <div className="absolute inset-x-0 top-0 p-2 md:p-4 pointer-events-none z-30 pt-[max(0.5rem,env(safe-area-inset-top))]">
@@ -516,8 +401,33 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
           </div>
       </div>
 
+      {/* TOOLTIP */}
+      <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 w-[90%] md:w-auto pointer-events-none">
+        {tooltipData && (
+          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-600/50 px-5 py-2.5 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-2 fade-in duration-200 pointer-events-auto flex items-center gap-4">
+             <span className="text-white font-black text-xs md:text-sm uppercase tracking-tight whitespace-nowrap drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">LEVEL {tooltipData.hex.maxLevel}</span>
+             <div className="w-px h-4 bg-slate-600"></div>
+             {tooltipData.isReachable && !tooltipData.isLocked ? (
+                <>
+                  {tooltipData.label ? (
+                     <span className="text-slate-300 font-mono text-xs font-bold uppercase tracking-wide whitespace-nowrap">{tooltipData.label}</span>
+                  ) : (
+                     <div className="flex items-center gap-3 font-mono text-xs font-bold">
+                        {tooltipData.costMoves > 0 && (<div className="flex items-center gap-1.5"><span className="text-white">{tooltipData.costMoves}</span><Footprints className="w-3.5 h-3.5 text-blue-400" /></div>)}
+                        {tooltipData.costMoves > 0 && tooltipData.costCoins > 0 && (<span className="text-slate-500">+</span>)}
+                        {tooltipData.costCoins > 0 && (<div className="flex items-center gap-1.5"><span className={tooltipData.canAffordCoins ? "text-white" : "text-red-400 font-black animate-pulse"}>{tooltipData.costCoins}</span><Coins className={`w-3.5 h-3.5 ${tooltipData.canAffordCoins ? "text-amber-400" : "text-red-500"}`} /></div>)}
+                     </div>
+                  )}
+                </>
+             ) : (
+                <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tooltipData.statusColor}`}><tooltipData.Icon className="w-3.5 h-3.5" /><span>{tooltipData.statusText}</span></div>
+             )}
+          </div>
+        )}
+      </div>
+
       {/* HEX CONTROLS: BOTTOM BAR */}
-      <div className={`absolute bottom-6 md:bottom-8 w-full flex justify-center items-end gap-3 md:gap-5 pointer-events-none z-40 pb-[env(safe-area-inset-bottom)] transition-opacity duration-300 ${shouldDimControls ? 'opacity-30 blur-[2px]' : 'opacity-100'}`}>
+      <div className={`absolute bottom-6 md:bottom-8 w-full flex justify-center items-end gap-3 md:gap-5 pointer-events-none z-40 pb-[env(safe-area-inset-bottom)] transition-opacity duration-300 ${tutorialStep && tutorialStep !== 'EXPLAIN_ACQUIRE' && tutorialStep !== 'FREE_PLAY' ? 'opacity-30' : 'opacity-100'}`}>
         
         {/* ROTATE LEFT */}
         <div className="pointer-events-auto mb-1">
@@ -556,13 +466,13 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                     <RefreshCw className={`w-8 h-8 ${(canRecover && !isMoving) ? 'text-cyan-50 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-slate-500'}`} />
                 </HexButton>
                 
-                <div className={isActionStep ? 'animate-bounce drop-shadow-[0_0_20px_rgba(245,158,11,1)]' : ''}>
+                <div className={tutorialStep === 'EXPLAIN_ACQUIRE' ? 'animate-bounce drop-shadow-[0_0_20px_rgba(245,158,11,1)]' : ''}>
                   <HexButton 
                     onClick={handleUpgradeClick} 
                     disabled={!canUpgrade || isMoving}
                     variant={(canUpgrade && !isMoving) ? 'amber' : 'slate'}
                     size="lg" // CHANGED: Equal size to recover
-                    pulsate={canUpgrade && !isMoving || isActionStep} 
+                    pulsate={canUpgrade && !isMoving || tutorialStep === 'EXPLAIN_ACQUIRE'} 
                   >
                       <ChevronsUp className={`w-10 h-10 ${(canUpgrade && !isMoving) ? 'text-amber-50 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-slate-500'}`} />
                   </HexButton>
@@ -633,36 +543,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                 <h2 className={`text-4xl font-black mb-2 uppercase tracking-wider ${gameStatus === 'VICTORY' ? 'text-amber-400' : 'text-red-500'}`}>
                     {gameStatus}
                 </h2>
-                <p className="text-slate-400 text-sm mb-4">
-                    {isCampaignComplete 
-                        ? "Campaign Complete! All sectors secured. You are a legend."
-                        : `${winCondition?.label} Objective ${gameStatus === 'VICTORY' ? 'Achieved' : 'Failed'}.`
-                    }
-                </p>
-
-                {/* WINNER DISPLAY (If Defeat) */}
-                {gameStatus === 'DEFEAT' && winner && winner.type !== 'PLAYER' && (
-                    <div className="bg-red-950/20 border border-red-900/30 p-3 rounded-xl mb-6 flex items-center justify-between px-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full border border-white/20 shadow-md" style={{ backgroundColor: winner.avatarColor }} />
-                            <div className="text-left">
-                                <div className="text-[10px] font-bold text-red-300 uppercase tracking-wider">Winner</div>
-                                <div className="text-white font-bold text-sm tracking-wide">{winner.id.toUpperCase()}</div>
-                            </div>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                            <div className="flex items-center gap-1.5 text-amber-400 font-mono font-bold text-sm">
-                                <span>{winner.totalCoinsEarned}</span>
-                                <span className="text-[9px] text-amber-600 font-sans tracking-tight">CR</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-indigo-400 font-mono font-bold text-sm">
-                                <span>L{winner.playerLevel}</span>
-                                <span className="text-[9px] text-indigo-600 font-sans tracking-tight">RANK</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
+                <p className="text-slate-400 text-sm mb-8">{winCondition?.label} Objective {gameStatus === 'VICTORY' ? 'Achieved' : 'Failed'}.</p>
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-8 flex justify-around text-left">
                     <div className="flex flex-col"><span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Time</span><span className="text-white font-mono font-bold text-lg">{formatTime(Date.now() - sessionStartTime)}</span></div>
                     <div className="w-px bg-slate-800"></div>

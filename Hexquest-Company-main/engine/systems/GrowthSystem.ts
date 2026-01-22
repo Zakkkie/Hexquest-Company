@@ -3,8 +3,6 @@
 
 
 
-
-
 import { System } from './System';
 import { GameState, GameEvent, EntityState, Entity, EntityType, SessionState } from '../../types';
 import { WorldIndex } from '../WorldIndex';
@@ -51,8 +49,31 @@ export class GrowthSystem implements System {
     let isUserIntentActive = entity.type === EntityType.PLAYER && state.isPlayerGrowing;
     let userIntentType = entity.type === EntityType.PLAYER ? state.playerGrowthIntent : null;
     
-    // REMOVED AUTO-TRIGGER LOGIC HERE
-    // Players must explicitly click to upgrade/acquire now.
+    // --- Auto-Trigger Logic (Player Only) ---
+    // Automatically trigger upgrade if it results in a Rank Up (level > playerLevel)
+    if (entity.type === EntityType.PLAYER && entity.state === EntityState.IDLE && !isUserIntentActive && !hasUpgradeCmd && hex) {
+        const targetLevel = hex.currentLevel + 1;
+        // Check if this upgrade is a Rank Up event
+        if (targetLevel > entity.playerLevel) {
+             const config = getLevelConfig(targetLevel);
+             if (entity.coins >= config.cost) {
+                 const neighbors = index.getValidNeighbors(entity.q, entity.r).map(h => ({ q: h.q, r: h.r }));
+                 const occupied = index.getOccupiedHexesList();
+                 const condition = checkGrowthCondition(hex, entity, neighbors, state.grid, occupied, queueSize);
+                 
+                 if (condition.canGrow) {
+                     // Auto-Activate
+                     isUserIntentActive = true;
+                     userIntentType = 'UPGRADE';
+                     
+                     // Sync state
+                     state.isPlayerGrowing = true;
+                     state.playerGrowthIntent = 'UPGRADE';
+                 }
+             }
+        }
+    }
+    // ----------------------------------------
 
     const shouldBeGrowing = hasUpgradeCmd || (entity.type === EntityType.PLAYER && isUserIntentActive);
 

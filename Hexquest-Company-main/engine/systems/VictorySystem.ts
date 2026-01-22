@@ -1,6 +1,4 @@
 
-
-
 import { System } from './System';
 import { GameState, GameEvent, EntityType, LeaderboardEntry, SessionState } from '../../types';
 import { WorldIndex } from '../WorldIndex';
@@ -8,11 +6,6 @@ import { GameEventFactory } from '../events';
 
 export class VictorySystem implements System {
   update(state: SessionState, index: WorldIndex, events: GameEvent[]): void {
-    // TUTORIAL OVERRIDE: Scripted tutorials handle victory manually
-    if (state.winCondition?.isTutorial) {
-        return;
-    }
-
     if (state.gameStatus !== 'PLAYING' || !state.winCondition) {
         return;
     }

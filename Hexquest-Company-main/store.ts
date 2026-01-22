@@ -7,8 +7,6 @@
 
 
 
-
-
 import { create } from 'zustand';
 import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep } from './types.ts';
 import { GAME_CONFIG } from './rules/config.ts';
@@ -52,7 +50,6 @@ interface GameStore extends GameState {
   confirmPendingAction: () => void;
   cancelPendingAction: () => void;
   advanceTutorial: (step: TutorialStep) => void;
-  checkTutorialCamera: (delta: number) => void;
   tick: () => void;
   showToast: (msg: string, type: 'error' | 'success' | 'info') => void;
   hideToast: () => void;
@@ -67,8 +64,6 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
   const initialGrid: Record<string, Hex> = { [getHexKey(0,0)]: startHex };
   getNeighbors(0, 0).forEach(n => { initialGrid[getHexKey(n.q, n.r)] = { id: getHexKey(n.q,n.r), q:n.q, r:n.r, currentLevel:0, maxLevel:0, progress:0, revealed:true }; });
   
-  // Note: No pre-seeded support hexes in Tutorial. Player builds from scratch.
-
   const botCount = winCondition.botCount || 0;
   const bots: Entity[] = [];
   const spawnPoints = [{ q: 0, r: -2 }, { q: 2, r: -2 }, { q: 2, r: 0 }, { q: 0, r: 2 }, { q: -2, r: 2 }, { q: -2, r: 0 }];
@@ -105,10 +100,6 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     timestamp: Date.now()
   };
 
-  // TUTORIAL RESOURCES: 0 Coins, 15 Moves (Need enough to move between 3 hexes multiple times)
-  const initialCoins = winCondition.isTutorial ? 0 : GAME_CONFIG.INITIAL_COINS;
-  const initialMoves = winCondition.isTutorial ? 15 : GAME_CONFIG.INITIAL_MOVES;
-
   return {
     stateVersion: 0,
     sessionId: Math.random().toString(36).substring(2, 15),
@@ -118,7 +109,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     grid: initialGrid,
     player: {
       id: 'player-1', type: EntityType.PLAYER, state: EntityState.IDLE, q: 0, r: 0,
-      playerLevel: 0, coins: initialCoins, moves: initialMoves,
+      playerLevel: 0, coins: GAME_CONFIG.INITIAL_COINS, moves: GAME_CONFIG.INITIAL_MOVES,
       totalCoinsEarned: 0, recentUpgrades: [], movementQueue: [],
       recoveredCurrentHex: false
     },
@@ -251,25 +242,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const { session, pendingConfirmation, confirmPendingAction, cancelPendingAction, advanceTutorial } = get();
       if (!session) return;
 
-      // Tutorial: Strict Movement Control
-      if (session.tutorialStep !== 'FREE_PLAY' && session.tutorialStep !== 'NONE') {
-          // Block movement during non-move steps
-          const moveSteps = ['MOVE_1', 'MOVE_2', 'MOVE_3', 'BUILD_FOUNDATION', 'UPGRADE_CENTER_3']; 
-          if (!moveSteps.includes(session.tutorialStep)) {
-              audioService.play('ERROR');
-              return;
-          }
-          
-          // Enforce targets (Skip for BUILD_FOUNDATION/UPGRADE_CENTER_3 to give freedom)
-          if (session.tutorialStep === 'MOVE_1') {
-              if (tq !== 1 || tr !== -1) { audioService.play('ERROR'); return; }
-          }
-          if (session.tutorialStep === 'MOVE_2') {
-              if (tq !== 0 || tr !== -1) { audioService.play('ERROR'); return; }
-          }
-          if (session.tutorialStep === 'MOVE_3') {
-              if (tq !== 0 || tr !== 0) { audioService.play('ERROR'); return; }
-          }
+      // Tutorial: Cannot move during WELCOME or EXPLAIN_ACQUIRE
+      if (session.tutorialStep === 'WELCOME' || session.tutorialStep === 'EXPLAIN_ACQUIRE') {
+          return;
       }
 
       if (pendingConfirmation) {
@@ -318,6 +293,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const res = engine.applyAction(session.player.id, action);
       if (res.ok) {
         audioService.play('MOVE');
+        // Tutorial Progression for Movement
+        if (session.tutorialStep === 'MOVE_UNIT') {
+           advanceTutorial('EXPLAIN_ACQUIRE');
+        } else if (session.tutorialStep === 'EXPLAIN_QUEUE') {
+           // If they moved away from the just-upgraded hex
+           advanceTutorial('FREE_PLAY');
+        }
         set({ session: engine.state });
       } else {
         audioService.play('ERROR');
@@ -354,16 +336,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ session: engine.state });
   },
 
-  checkTutorialCamera: (delta) => {
-      const { session, advanceTutorial } = get();
-      if (session?.tutorialStep === 'CAMERA_ROTATE') {
-          if (Math.abs(delta) > 50) { // Enough movement
-              audioService.play('SUCCESS');
-              advanceTutorial('MOVE_1');
-          }
-      }
-  },
-
   tick: () => {
       if (!engine || engine.state.gameStatus !== 'PLAYING') return;
       
@@ -391,46 +363,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           result.state.effects = [];
       }
 
-      // TUTORIAL: CHECK FOUNDATION COMPLETION (3x L2 Neighbors)
-      if (result.state.tutorialStep === 'BUILD_FOUNDATION') {
-          const centerNeighbors = getNeighbors(0, 0);
-          const l2Count = centerNeighbors.filter(n => {
-              const h = result.state.grid[getHexKey(n.q, n.r)];
-              return h && h.currentLevel >= 2;
-          }).length;
-
-          if (l2Count >= 3) {
-              // Transition to final upgrade
-              // Since we are inside tick handling, `result.state` is the result of the tick *just processed*.
-              // We should mutate the result state here to update UI immediately.
-              engine.setTutorialStep('UPGRADE_CENTER_3');
-              result.state.tutorialStep = 'UPGRADE_CENTER_3'; 
-              audioService.play('SUCCESS');
-          }
-      }
-
-      // --- FINAL TUTORIAL STEP CHECK: LEVEL 3 VICTORY ---
-      // We check this every tick to ensure we don't miss the event
-      if (result.state.tutorialStep === 'UPGRADE_CENTER_3' || result.state.tutorialStep === 'FREE_PLAY') {
-          if (result.state.player.playerLevel >= 3) {
-              // Check if we already triggered animation
-              if (engine.state.tutorialStep !== 'VICTORY_ANIMATION') {
-                  get().advanceTutorial('VICTORY_ANIMATION');
-                  
-                  // DELAYED VICTORY TRIGGER (3 Seconds)
-                  setTimeout(() => {
-                      // Force victory status in engine if still in animation state
-                      // Must verify engine is still valid (player didn't quit)
-                      if (engine && engine.state.tutorialStep === 'VICTORY_ANIMATION') {
-                          engine.triggerVictory();
-                          set({ session: engine.state });
-                          audioService.play('SUCCESS');
-                      }
-                  }, 3000);
-              }
-          }
-      }
-
       const hasEvents = result.events.length > 0;
       
       if (hasEvents) {
@@ -446,29 +378,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                  case 'ACTION_DENIED': 
                  case 'ERROR': audioService.play('ERROR'); break;
                }
-               
-               // TUTORIAL PROGRESSION ON ACTIONS
-               
-               if (event.type === 'MOVE_COMPLETE') {
-                   switch(result.state.tutorialStep) {
-                       case 'MOVE_1': get().advanceTutorial('ACQUIRE_1'); break;
-                       case 'MOVE_2': get().advanceTutorial('ACQUIRE_2'); break;
-                       case 'MOVE_3': get().advanceTutorial('ACQUIRE_3'); break;
-                   }
-               }
-
-               if (event.type === 'SECTOR_ACQUIRED') {
-                   switch(result.state.tutorialStep) {
-                       case 'ACQUIRE_1': get().advanceTutorial('MOVE_2'); break;
-                       case 'ACQUIRE_2': get().advanceTutorial('MOVE_3'); break;
-                       case 'ACQUIRE_3': get().advanceTutorial('UPGRADE_CENTER_2'); break;
-                   }
-               }
-               
-               if (event.type === 'LEVEL_UP') {
-                   switch(result.state.tutorialStep) {
-                       case 'UPGRADE_CENTER_2': get().advanceTutorial('BUILD_FOUNDATION'); break;
-                   }
+               // Check tutorial progression
+               if (event.type === 'SECTOR_ACQUIRED' && result.state.tutorialStep === 'EXPLAIN_ACQUIRE') {
+                   get().advanceTutorial('EXPLAIN_QUEUE');
                }
             }
             if (event.type === 'VICTORY') audioService.play('SUCCESS');

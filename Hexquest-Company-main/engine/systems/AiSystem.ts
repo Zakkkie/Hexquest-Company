@@ -1,5 +1,3 @@
-
-
 import { System } from './System';
 import { GameState, GameEvent, EntityState, EntityType, SessionState } from '../../types';
 import { WorldIndex } from '../WorldIndex';
@@ -18,9 +16,9 @@ export class AiSystem implements System {
   update(state: SessionState, index: WorldIndex, events: GameEvent[]): void {
     const now = Date.now();
     
-    // Global throttling is now handled per-bot to allow variable speeds
-    // We only use state.lastBotActionTime for high-level debug or fallback
-    // if (now - state.lastBotActionTime < GAME_CONFIG.BOT_ACTION_INTERVAL_MS) { return; }
+    if (now - state.lastBotActionTime < GAME_CONFIG.BOT_ACTION_INTERVAL_MS) {
+      return;
+    }
 
     index.syncGrid(state.grid);
     
@@ -31,16 +29,6 @@ export class AiSystem implements System {
 
     for (const bot of shuffledBots) {
       if (bot.state !== EntityState.IDLE) continue;
-      
-      // --- SPEED THROTTLE ---
-      // Bots below level 3 act at half speed (2x interval)
-      const baseInterval = GAME_CONFIG.BOT_ACTION_INTERVAL_MS;
-      const interval = bot.playerLevel < 3 ? baseInterval * 2 : baseInterval;
-      
-      const lastAct = bot.lastActionTime || 0;
-      if (now - lastAct < interval) {
-          continue; 
-      }
       
       const aiResult = calculateBotMove(
         bot, 
@@ -93,9 +81,6 @@ export class AiSystem implements System {
              if (bot.memory) bot.memory.stuckCounter = 0;
          }
       }
-      
-      // Update individual timestamp
-      bot.lastActionTime = now;
     }
 
     state.lastBotActionTime = now;

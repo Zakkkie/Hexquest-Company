@@ -1,8 +1,6 @@
 
 
 
-
-
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Group, Path, Shape, Circle, Text, RegularPolygon } from 'react-konva';
 import Konva from 'konva';
@@ -21,7 +19,6 @@ interface HexagonVisualProps {
   pendingCost: number | null; // New Prop
   onHexClick: (q: number, r: number) => void;
   onHover: (id: string | null) => void;
-  isTutorialTarget?: boolean;
 }
 
 const LEVEL_COLORS: Record<number, { fill: string; stroke: string; side: string }> = {
@@ -82,13 +79,12 @@ const getCraters = (q: number, r: number, damage: number, offsetY: number) => {
     return craters;
 };
 
-const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation, playerRank, isOccupied, isSelected, isPendingConfirm, pendingCost, onHexClick, onHover, isTutorialTarget }) => {
+const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation, playerRank, isOccupied, isSelected, isPendingConfirm, pendingCost, onHexClick, onHover }) => {
   const groupRef = useRef<Konva.Group>(null);
   const progressShapeRef = useRef<Konva.Shape>(null);
   const selectionRef = useRef<Konva.Path>(null);
   const voidGroupRef = useRef<Konva.Group>(null);
   const confirmRef = useRef<Konva.Group>(null);
-  const tutorialHighlightRef = useRef<Konva.Path>(null);
   
   // Track previous state to trigger animations
   const prevStructureRef = useRef(hex.structureType);
@@ -226,20 +222,6 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
          return () => { anim.stop(); };
     }
   }, [isPendingConfirm]);
-
-  // TUTORIAL TARGET ANIMATION
-  useEffect(() => {
-      if (isTutorialTarget && tutorialHighlightRef.current) {
-          const node = tutorialHighlightRef.current;
-          const anim = new Konva.Animation((frame) => {
-              const scale = 1 + (Math.sin(frame!.time / 150) * 0.15);
-              node.scale({ x: scale, y: scale });
-              node.opacity(0.5 + (Math.sin(frame!.time / 150) * 0.3));
-          }, node.getLayer());
-          anim.start();
-          return () => { anim.stop(); };
-      }
-  }, [isTutorialTarget]);
 
   // PROGRESS BAR
   useEffect(() => {
@@ -408,22 +390,6 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
           />
       )}
 
-      {/* 3.5 TUTORIAL HIGHLIGHT */}
-      {isTutorialTarget && (
-          <Path
-            ref={tutorialHighlightRef}
-            data={selectionPathData}
-            stroke="#60a5fa"
-            strokeWidth={4}
-            fillEnabled={false}
-            perfectDrawEnabled={false}
-            shadowColor="#3b82f6"
-            shadowBlur={20}
-            shadowOpacity={1}
-            listening={false}
-          />
-      )}
-
       {/* 4. CONFIRMATION OVERLAY */}
       {isPendingConfirm && (
         <Group ref={confirmRef} y={offsetY - 35} listening={false}>
@@ -535,7 +501,6 @@ interface SmartHexagonProps {
   pendingCost: number | null;
   onHexClick: (q: number, r: number) => void;
   onHover: (id: string | null) => void;
-  isTutorialTarget?: boolean;
 }
 
 const SmartHexagon: React.FC<SmartHexagonProps> = React.memo((props) => {

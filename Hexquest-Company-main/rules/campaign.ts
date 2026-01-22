@@ -1,6 +1,4 @@
 
-
-
 import { WinCondition } from '../types';
 
 export const CAMPAIGN_LEVELS: WinCondition[] = [
@@ -10,7 +8,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     botCount: 0, 
     queueSize: 1, 
     targetLevel: 3, 
-    targetCoins: 50, 
+    targetCoins: 125,  
     winType: 'OR',
     difficulty: 'EASY',
     label: 'Training Simulation',

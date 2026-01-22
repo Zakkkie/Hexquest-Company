@@ -17,8 +17,6 @@
 
 
 
-
-
 export type HexCoord = { q: number; r: number; upgrade?: boolean; intent?: 'UPGRADE' | 'RECOVER' };
 
 // Read-only view of a Hex for the Bot (Architecture Requirement)
@@ -101,9 +99,6 @@ export interface Entity {
   
   // Timestamp of the last physical move to throttle logic to animation speed
   lastMoveTime?: number; 
-  
-  // Timestamp of the last logic action (AI Decision)
-  lastActionTime?: number;
 }
 
 export type GameEventType = 
@@ -206,21 +201,7 @@ export interface FloatingText {
   icon?: 'UP' | 'PLUS' | 'WARN' | 'COIN' | 'DOWN';
 }
 
-export type TutorialStep = 
-  | 'NONE' 
-  | 'WELCOME' 
-  | 'CAMERA_ROTATE'
-  | 'MOVE_1' // To Neighbor 1 (1, -1)
-  | 'ACQUIRE_1' 
-  | 'MOVE_2' // To Neighbor 2 (0, -1)
-  | 'ACQUIRE_2'
-  | 'MOVE_3' // To Center (0, 0)
-  | 'ACQUIRE_3'
-  | 'UPGRADE_CENTER_2' // Center to L2
-  | 'BUILD_FOUNDATION' // Free Play phase to build L2 supports
-  | 'UPGRADE_CENTER_3' // New Step: Final Upgrade
-  | 'VICTORY_ANIMATION' // 3s Fireworks
-  | 'FREE_PLAY';
+export type TutorialStep = 'NONE' | 'WELCOME' | 'MOVE_CAMERA' | 'MOVE_UNIT' | 'EXPLAIN_ACQUIRE' | 'EXPLAIN_QUEUE' | 'FREE_PLAY';
 
 // Authoritative state for a single game session, managed by GameEngine
 export interface SessionState {

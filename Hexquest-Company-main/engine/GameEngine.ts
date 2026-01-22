@@ -1,8 +1,6 @@
 
 
 
-
-
 import { GameState, GameAction, GameEvent, ValidationResult, SessionState, EntityState, TutorialStep } from '../types';
 import { WorldIndex } from './WorldIndex';
 import { System } from './systems/System';
@@ -12,7 +10,6 @@ import { AiSystem } from './systems/AiSystem';
 import { VictorySystem } from './systems/VictorySystem';
 import { ActionProcessor } from './ActionProcessor';
 import { SAFETY_CONFIG } from '../rules/config';
-import { GameEventFactory } from './events';
 
 export interface TickResult {
   state: SessionState;
@@ -104,23 +101,6 @@ export class GameEngine {
       if (!this._state) return;
       const nextState = this.cloneState(this._state);
       nextState.tutorialStep = step;
-      nextState.stateVersion++;
-      this._state = nextState;
-  }
-
-  public triggerVictory() {
-      if (!this._state) return;
-      const nextState = this.cloneState(this._state);
-      nextState.gameStatus = 'VICTORY';
-      
-      nextState.messageLog.unshift({
-          id: `win-manual-${Date.now()}`,
-          text: 'Tutorial Complete: Mission Accomplished',
-          type: 'SUCCESS',
-          source: 'SYSTEM',
-          timestamp: Date.now()
-      });
-      
       nextState.stateVersion++;
       this._state = nextState;
   }
