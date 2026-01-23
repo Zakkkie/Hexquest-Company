@@ -1,6 +1,7 @@
 
 
 
+
 /**
  * Procedural Audio Synthesizer for HexQuest
  * Uses Web Audio API to generate sci-fi UI sounds without external assets.
@@ -35,9 +36,6 @@ class AudioService {
       this.masterGain.gain.value = 0.3; // Default Volume
       this.masterGain.connect(this.ctx.destination);
     }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
   }
 
   public setMuted(muted: boolean) {
@@ -51,8 +49,19 @@ class AudioService {
 
   public play(type: SoundType) {
     if (this.isMuted) return;
+    
     this.init();
     if (!this.ctx || !this.masterGain) return;
+
+    // Handle Autoplay Policy: Resume context if suspended
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {
+        // Ignore autoplay error. Sound will just not play until user interacts.
+      });
+    }
+
+    // If context is not running (e.g., blocked by autoplay policy), we can't play sound.
+    if (this.ctx.state !== 'running') return;
 
     const t = this.ctx.currentTime;
 
