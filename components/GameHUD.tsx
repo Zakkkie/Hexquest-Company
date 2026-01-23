@@ -69,7 +69,16 @@ const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({
                     <div className="bg-black/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur">
                         <p className="text-white font-bold text-lg uppercase tracking-widest whitespace-nowrap">Right Click + Drag</p>
                     </div>
-                    <p className="text-slate-400 text-xs mt-1 font-mono uppercase">{t.CAMERA_DESC}</p>
+                    <div className="mt-2 flex flex-col items-center gap-1">
+                        <p className="text-slate-400 text-xs font-mono uppercase">{t.CAMERA_DESC}</p>
+                        <span className="text-amber-400 text-[10px] font-bold uppercase tracking-widest bg-black/40 px-2 py-1 rounded">
+                            {language === 'RU' ? 'ИЛИ КНОПКИ' : 'OR BUTTONS'}
+                        </span>
+                        <div className="flex gap-20 mt-2">
+                             <ArrowDown className="w-6 h-6 text-amber-500 animate-bounce" />
+                             <ArrowDown className="w-6 h-6 text-amber-500 animate-bounce" />
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -207,8 +216,6 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
 
   const user = useGameStore(state => state.user);
   const toast = useGameStore(state => state.toast);
-  // pendingConfirmation is now handled visually in the GameView/Hexagon, not as a modal
-  // const pendingConfirmation = useGameStore(state => state.pendingConfirmation);
   const isMuted = useGameStore(state => state.isMuted);
 
   const setUIState = useGameStore(state => state.setUIState);
@@ -399,7 +406,10 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
   const isTutorialActive = tutorialStep && tutorialStep !== 'NONE' && tutorialStep !== 'FREE_PLAY';
   // Highlight buttons if in action step
   const isActionStep = ['ACQUIRE_1', 'ACQUIRE_2', 'ACQUIRE_3', 'UPGRADE_CENTER_2', 'UPGRADE_CENTER_3'].includes(tutorialStep);
-  const shouldDimControls = isTutorialActive && !isActionStep && tutorialStep !== 'BUILD_FOUNDATION';
+  const shouldDimControls = isTutorialActive && !isActionStep && tutorialStep !== 'BUILD_FOUNDATION' && tutorialStep !== 'CAMERA_ROTATE';
+  
+  // Highlight rotation buttons explicitly
+  const isCameraTutorial = tutorialStep === 'CAMERA_ROTATE';
 
   return (
     <div className="absolute inset-0 pointer-events-none z-30 select-none">
@@ -411,7 +421,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
       <div className="absolute inset-x-0 top-0 p-2 md:p-4 pointer-events-none z-30 pt-[max(0.5rem,env(safe-area-inset-top))]">
           <div className="max-w-7xl mx-auto w-full flex justify-between items-start gap-2">
                
-               {/* LEFT: STATS PILL (UPDATED DESKTOP LAYOUT) */}
+               {/* LEFT: STATS PILL */}
                <div className="pointer-events-auto flex items-center bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-lg overflow-hidden px-3 md:px-2 py-2 gap-2 md:gap-2 h-12 md:h-16 min-w-0">
                    
                    {/* Rank */}
@@ -563,7 +573,12 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
         
         {/* ROTATE LEFT */}
         <div className="pointer-events-auto mb-1">
-          <HexButton size="sm" onClick={() => { onRotateCamera('left'); playUiSound('CLICK'); }} variant="slate">
+          <HexButton 
+            size="sm" 
+            onClick={() => { onRotateCamera('left'); playUiSound('CLICK'); }} 
+            variant={isCameraTutorial ? 'amber' : 'slate'}
+            pulsate={isCameraTutorial}
+          >
             <RotateCcw className="w-5 h-5 text-slate-300 group-hover:text-white" />
           </HexButton>
         </div>
@@ -615,7 +630,12 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
 
         {/* ROTATE RIGHT */}
         <div className="pointer-events-auto mb-1">
-          <HexButton size="sm" onClick={() => { onRotateCamera('right'); playUiSound('CLICK'); }} variant="slate">
+          <HexButton 
+            size="sm" 
+            onClick={() => { onRotateCamera('right'); playUiSound('CLICK'); }} 
+            variant={isCameraTutorial ? 'amber' : 'slate'}
+            pulsate={isCameraTutorial}
+          >
              <RotateCw className="w-5 h-5 text-slate-300 group-hover:text-white" />
           </HexButton>
         </div>
