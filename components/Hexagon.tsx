@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Group, Path, Shape, Circle, Text, RegularPolygon } from 'react-konva';
 import Konva from 'konva';
@@ -104,8 +105,8 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
 
   const isGrowing = hex.progress > 0 && !isVoid;
   const targetLevel = hex.currentLevel + 1;
-  const neededSeconds = getSecondsToGrow(targetLevel) || 1;
-  const progressPercent = Math.min(1, hex.progress / neededSeconds);
+  const neededTicks = getSecondsToGrow(targetLevel) || 30; // Use ticks (30 = 3s)
+  const progressPercent = Math.min(1, hex.progress / neededTicks);
   const isLocked = hex.maxLevel > playerRank;
   
   // Durability Logic
@@ -243,8 +244,11 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
   useEffect(() => {
       const shape = progressShapeRef.current;
       if (shape && isGrowing) {
+          // Duration of the TWEEN is not the grow time, but the speed at which the bar updates per tick.
+          // Since tick updates occur every 100ms, a duration of ~0.1s would be smoothest, but 0.95 acts as a buffer.
+          // We set it to match tick interval roughly for responsiveness.
           const tween = new Konva.Tween({
-              node: shape, duration: 0.95, visualProgress: progressPercent, easing: Konva.Easings.Linear
+              node: shape, duration: 0.2, visualProgress: progressPercent, easing: Konva.Easings.Linear
           });
           tween.play();
           return () => tween.destroy();

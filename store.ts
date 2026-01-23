@@ -36,6 +36,7 @@ interface GameStore extends GameState {
   logout: () => void;
   startNewGame: (win: WinCondition) => void;
   startCampaignLevel: (levelId: number) => void;
+  startMission: () => void; // New method
   abandonSession: () => void;
   togglePlayerGrowth: (intent?: 'RECOVER' | 'UPGRADE') => void;
   rechargeMove: () => void;
@@ -115,7 +116,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     currentTurn: 0,
     messageLog: [initialLog],
     botActivityLog: [], 
-    gameStatus: 'PLAYING',
+    gameStatus: 'BRIEFING', // Start in Briefing mode
     lastBotActionTime: Date.now(),
     isPlayerGrowing: false,
     playerGrowthIntent: null,
@@ -193,6 +194,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
      get().startNewGame(config);
   },
 
+  startMission: () => {
+      if (!engine) return;
+      audioService.play('UI_CLICK');
+      // Hacky way to update engine status directly since we don't have a specific action for it yet, 
+      // but ideally this should go through an action. For now, direct mutation on wrapper logic is fine.
+      // Actually, we must use engine's clone logic if possible, or just set it on the next tick.
+      // Let's just update the store and engine state.
+      const s = { ...engine.state };
+      s.gameStatus = 'PLAYING';
+      s.sessionStartTime = Date.now(); // Reset timer on start
+      // Re-inject into engine
+      engine = new GameEngine(s); 
+      set({ session: engine.state });
+  },
+
   abandonSession: () => {
       if (engine) {
           engine.destroy();
@@ -244,6 +260,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!engine) return;
       const { session, pendingConfirmation, confirmPendingAction, cancelPendingAction, advanceTutorial } = get();
       if (!session) return;
+
+      if (session.gameStatus === 'BRIEFING') return;
 
       // Tutorial: Strict Movement Control
       if (session.tutorialStep !== 'FREE_PLAY' && session.tutorialStep !== 'NONE') {
@@ -378,7 +396,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   tick: () => {
-      if (!engine || engine.state.gameStatus !== 'PLAYING') return;
+      if (!engine) return;
+      // Do not process simulation if briefing is active
+      if (engine.state.gameStatus !== 'PLAYING') return;
       
       const playerHexKey = getHexKey(engine.state.player.q, engine.state.player.r);
       const playerHexBefore = engine.state.grid[playerHexKey];

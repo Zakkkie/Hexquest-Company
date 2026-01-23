@@ -1,3 +1,4 @@
+
 import React, { useEffect, useCallback, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { Stage, Layer, Line, Group, Text, Circle } from 'react-konva';
 import Konva from 'konva';
@@ -139,6 +140,7 @@ const GameView: React.FC = () => {
   const effects = useGameStore(state => state.session?.effects); // Visual Effects
   const isPlayerGrowing = useGameStore(state => state.session?.isPlayerGrowing);
   const tutorialStep = useGameStore(state => state.session?.tutorialStep);
+  const winCondition = useGameStore(state => state.session?.winCondition);
   
   // Pending Confirmation Logic
   const pendingConfirmation = useGameStore(state => state.pendingConfirmation);
@@ -433,7 +435,7 @@ const GameView: React.FC = () => {
         });
      }
      return items.sort((a, b) => a.depth - b.depth);
-  }, [grid, player, safeBots, cameraRotation, isMoving, isPlayerGrowing, viewState, dimensions, neighbors, movementTracker]);
+  }, [grid, player, safeBots, cameraRotation, isMoving, isPlayerGrowing, viewState, dimensions, neighbors, movementTracker, tutorialStep, winCondition]); // Added tutorialStep and winCondition to deps
 
   // --- RENDER ---
   return (
@@ -472,7 +474,7 @@ const GameView: React.FC = () => {
                     const isPending = item.id === pendingTargetKey;
                     
                     let isTutorialTarget = false;
-                    let tutorialHighlightColor: 'blue' | 'amber' | 'cyan' = 'blue';
+                    let tutorialHighlightColor: 'blue' | 'amber' | 'cyan' | 'emerald' = 'blue';
 
                     if (tutorialStep) {
                         const q = item.q;
@@ -485,6 +487,38 @@ const GameView: React.FC = () => {
                         else if (tutorialStep === 'ACQUIRE_3' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'amber'; }
                         else if (tutorialStep === 'UPGRADE_CENTER_2' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'amber'; }
                         else if (tutorialStep === 'UPGRADE_CENTER_3' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'cyan'; }
+                        
+                        // SMART HIGHLIGHT FOR FOUNDATION PHASE
+                        if (tutorialStep === 'BUILD_FOUNDATION') {
+                            const queueSize = winCondition?.queueSize || 1;
+                            const hex = grid[item.id];
+                            const isNeighbor = getNeighbors(player.q, player.r).some(n => n.q === q && n.r === r);
+                            const isCurrent = player.q === q && player.r === r;
+
+                            if (player.recentUpgrades.length >= queueSize) {
+                                // Cycle Full (Has Points)
+                                
+                                // 1. TARGETS (Amber): Valid L1 -> L2 Upgrades
+                                if (hex && hex.maxLevel === 1 && (isNeighbor || isCurrent)) {
+                                    isTutorialTarget = true; 
+                                    tutorialHighlightColor = 'amber';
+                                }
+                                
+                                // 2. CONFIRMATION (Cyan): Existing L2s (Supports/Foundation)
+                                // This provides feedback on what is already "done"
+                                if (hex && hex.maxLevel === 2 && (isNeighbor || isCurrent)) {
+                                    isTutorialTarget = true;
+                                    tutorialHighlightColor = 'cyan';
+                                }
+
+                            } else {
+                                // Cycle Empty (Need Points) -> Highlight valid L0s (Movement targets)
+                                if (hex && hex.maxLevel === 0 && isNeighbor) {
+                                    isTutorialTarget = true; 
+                                    tutorialHighlightColor = 'emerald';
+                                }
+                            }
+                        }
                     }
                     
                     return (
@@ -500,7 +534,7 @@ const GameView: React.FC = () => {
                             onHexClick={handleHexClick} 
                             onHover={setHoveredHexId}
                             isTutorialTarget={isTutorialTarget}
-                            tutorialHighlightColor={tutorialHighlightColor}
+                            tutorialHighlightColor={tutorialHighlightColor as any}
                         />
                     );
                 } else if (item.type === 'UNIT') {

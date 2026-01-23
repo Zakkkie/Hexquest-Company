@@ -214,7 +214,7 @@ export interface SessionState {
   player: Entity;
   bots: Entity[]; 
   currentTurn: number;
-  gameStatus: 'PLAYING' | 'VICTORY' | 'DEFEAT';
+  gameStatus: 'BRIEFING' | 'PLAYING' | 'VICTORY' | 'DEFEAT';
   messageLog: LogEntry[]; // UPDATED: Structured log
   botActivityLog: BotLogEntry[];
   lastBotActionTime: number; 

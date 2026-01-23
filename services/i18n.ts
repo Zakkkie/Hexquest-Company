@@ -57,6 +57,7 @@ interface Dictionary {
         BTN_RETRY: string;
         BTN_VIEW_LEADERBOARD: string;
         TIME: string;
+        BRIEFING_RIVAL: string;
     };
     TOOLTIP: {
         CURRENT_LOC: string;
@@ -71,10 +72,12 @@ interface Dictionary {
         WELCOME_DESC: string;
         BTN_START: string;
         CAMERA_DESC: string;
+        CAMERA_HINT: string;
         MOVE_A: string;
         MOVE_B: string;
         MOVE_CENTER: string;
         ACQUIRE: string;
+        ACQUIRE_DESC: string;
         UPGRADE_L2: string;
         UPGRADE_L2_DESC: string;
         FOUNDATION_TITLE: string;
@@ -153,7 +156,8 @@ export const TEXT: Record<Language, Dictionary> = {
             BTN_NEXT: "Next Sector",
             BTN_RETRY: "Retry Sector",
             BTN_VIEW_LEADERBOARD: "View Leaderboard",
-            TIME: "Time"
+            TIME: "Time",
+            BRIEFING_RIVAL: "Rival Presence Detected"
         },
         TOOLTIP: {
             CURRENT_LOC: "Current Location",
@@ -164,24 +168,26 @@ export const TEXT: Record<Language, Dictionary> = {
             PLAYER: "PLAYER"
         },
         TUTORIAL: {
-            WELCOME_TITLE: "Training Mode",
-            WELCOME_DESC: "Commander, initializing manual expansion protocol. Build supports to reach high ground.",
-            BTN_START: "Start Simulation",
-            CAMERA_DESC: "Rotate View to Survey",
-            MOVE_A: "Order Movement: Select Highlighted Sector (1, -1)",
-            MOVE_B: "Expand West: Select Highlighted Sector (0, -1)",
-            MOVE_CENTER: "Regroup: Return to Center (0, 0)",
-            ACQUIRE: "Execute Upgrade: Claim Sector",
-            UPGRADE_L2: "Establish Tier 2 Structure",
+            WELCOME_TITLE: "Training",
+            WELCOME_DESC: "Goal: Reach Level 3. You must improve surrounding hexes to create a foundation for higher levels.",
+            BTN_START: "Start",
+            CAMERA_DESC: "Camera Control",
+            CAMERA_HINT: "Note the flashing buttons below. Use them or right-click drag to rotate.",
+            MOVE_A: "Walk to the flashing hex using move points by clicking on it.",
+            MOVE_B: "Continue improving hexes to L1!",
+            MOVE_CENTER: "One more upgrade left to reach the next level! Forward!",
+            ACQUIRE: "Upgrade",
+            ACQUIRE_DESC: "Improve the L0 hex to L1!",
+            UPGRADE_L2: "Upgrade to Level 2",
             UPGRADE_L2_DESC: "Requires L1 Supports",
-            FOUNDATION_TITLE: "Phase 2: Independence",
-            FOUNDATION_DESC: "To reach Level 3, the center needs three Level 2 neighbors.",
-            FOUNDATION_TASK: "Objective: Upgrade 3 adjacent sectors to Level 2 to provide structural support.",
-            FINAL_TITLE: "Structure Stable!",
+            FOUNDATION_TITLE: "Phase 2: Foundation",
+            FOUNDATION_DESC: "Create a foundation of three L2 hexes for L3 growth! Don't forget upgrade points!",
+            FOUNDATION_TASK: "Build 3x Level 2 Hexes",
+            FINAL_TITLE: "Foundation Ready!",
             FINAL_DESC: "Return to the center and upgrade to Level 3 to complete mission.",
             NO_POINTS_TITLE: "Cycle Empty",
-            NO_POINTS_DESC: "Missing Upgrade Point! You cannot upgrade the same hex consecutively.",
-            NO_POINTS_HINT: "OBJECTIVE: Acquire a neutral sector (L0 -> L1) to generate momentum."
+            NO_POINTS_DESC: "Continue upgrading other hexes to L2, but don't forget upgrade points!",
+            NO_POINTS_HINT: "Look for highlighted empty hexes."
         },
         LEADERBOARD: {
             TITLE: "Hall of Fame",
@@ -248,7 +254,8 @@ export const TEXT: Record<Language, Dictionary> = {
             BTN_NEXT: "След. Сектор",
             BTN_RETRY: "Повторить",
             BTN_VIEW_LEADERBOARD: "К Рекордам",
-            TIME: "Время"
+            TIME: "Время",
+            BRIEFING_RIVAL: "ОБНАРУЖЕН СОПЕРНИК"
         },
         TOOLTIP: {
             CURRENT_LOC: "Текущая позиция",
@@ -259,24 +266,26 @@ export const TEXT: Record<Language, Dictionary> = {
             PLAYER: "ИГРОК"
         },
         TUTORIAL: {
-            WELCOME_TITLE: "Режим Обучения",
-            WELCOME_DESC: "Командир, инициализация протокола. Постройте опоры, чтобы достичь высот.",
-            BTN_START: "Начать Симуляцию",
+            WELCOME_TITLE: "Обучение",
+            WELCOME_DESC: "Сейчас необходимо достигнуть 3 уровня. Для роста улучшай гексы вокруг и создавай фундамент из 3 гексов одного уровня.",
+            BTN_START: "Начать",
             CAMERA_DESC: "Вращение Камеры",
-            MOVE_A: "Приказ: Перемещение в Сектор А (1, -1)",
-            MOVE_B: "Приказ: Перемещение в Сектор Б (0, -1)",
-            MOVE_CENTER: "Возврат в Центр (0, 0)",
-            ACQUIRE: "Улучшить: Захватить Сектор",
+            CAMERA_HINT: "Обрати внимание на мигающие кнопки внизу. Они позволят тебе поворачивать карту.",
+            MOVE_A: "Пройди на мигающий гекс используя очки ходов, просто нажав на него.",
+            MOVE_B: "Продолжай улучшать гексы до 1 уровня дальше!",
+            MOVE_CENTER: "Осталось еще одно улучшение для перехода на следующей уровень! Вперед!",
+            ACQUIRE: "Апгрейд",
+            ACQUIRE_DESC: "Улучши гекс 0 уровня до 1 уровня!",
             UPGRADE_L2: "Улучшить до Уровня 2",
             UPGRADE_L2_DESC: "Нужны опоры Ур.1",
             FOUNDATION_TITLE: "Фаза 2: Фундамент",
-            FOUNDATION_DESC: "Для Центра Ур.3 нужны три соседа Уровня 2.",
-            FOUNDATION_TASK: "Задача: Улучшите 3 соседних сектора до Уровня 2 для поддержки.",
+            FOUNDATION_DESC: "Создай из трёх гексов 2 уровня основание для роста 3 уровня! Не забудь про получение очков апгрейда!",
+            FOUNDATION_TASK: "Подготовь 3 гекса 2 Уровня",
             FINAL_TITLE: "Фундамент Готов!",
             FINAL_DESC: "Вернитесь в центр и улучшите его до Уровня 3.",
             NO_POINTS_TITLE: "Нет Очков",
-            NO_POINTS_DESC: "Нет очка улучшения! Вы не можете улучшать один гекс подряд.",
-            NO_POINTS_HINT: "ЦЕЛЬ: Захватите нейтральный сектор (L0 -> L1), чтобы получить импульс."
+            NO_POINTS_DESC: "Продолжай улучшать другие гексы до 2 уровня, но не забывай об очках апгрейда!",
+            NO_POINTS_HINT: "Иди на подсветку за очками."
         },
         LEADERBOARD: {
             TITLE: "Зал Славы",
