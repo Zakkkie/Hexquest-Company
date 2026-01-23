@@ -148,13 +148,10 @@ const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({
             )}
 
             {/* STEP 2: CAMERA */}
-            {step === 'CAMERA_ROTATE' && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-pulse">
-                    <Move3d className="w-12 h-12 md:w-16 md:h-16 text-white mb-2 drop-shadow-[0_0_10px_rgba(0,0,0,1)]" />
-                    <div className="bg-black/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur">
-                        <p className="text-white font-bold text-sm md:text-lg uppercase tracking-widest whitespace-nowrap">{t.CAMERA_DESC}</p>
-                    </div>
-                </div>
+            {step === 'CAMERA_ROTATE' && renderInstructionPanel(
+                t.CAMERA_DESC, 
+                language === 'RU' ? "Используйте кнопки внизу или перетаскивание правой кнопкой мыши." : "Use the buttons below or right-click drag to rotate view.",
+                true
             )}
 
             {/* MOVEMENTS - Text Only Instructions at Top */}

@@ -324,6 +324,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const res = engine.applyAction(session.player.id, action);
       if (res.ok) {
         audioService.play('MOVE');
+        // Tutorial Progression for Movement
+        if (session.tutorialStep === 'MOVE_UNIT') {
+           advanceTutorial('EXPLAIN_ACQUIRE');
+        } else if (session.tutorialStep === 'EXPLAIN_QUEUE') {
+           // If they moved away from the just-upgraded hex
+           advanceTutorial('FREE_PLAY');
+        }
         set({ session: engine.state });
       } else {
         audioService.play('ERROR');
@@ -418,14 +425,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
               if (engine.state.tutorialStep !== 'VICTORY_ANIMATION') {
                   get().advanceTutorial('VICTORY_ANIMATION');
                   
-                  // DELAYED VICTORY TRIGGER (3 Seconds)
-                  setTimeout(() => {
-                      if (engine && engine.state.tutorialStep === 'VICTORY_ANIMATION') {
-                          engine.triggerVictory();
-                          set({ session: engine.state });
-                          audioService.play('SUCCESS');
-                      }
-                  }, 3000);
+                  // IMMEDIATE VICTORY TRIGGER (No Delay)
+                  if (engine) {
+                      engine.triggerVictory();
+                      audioService.play('SUCCESS');
+                      
+                      // FIX: Sync local result variable with the engine's new victory state.
+                      // This ensures that the final set() call at the bottom doesn't overwrite 
+                      // the Victory state with the stale 'PLAYING' snapshot.
+                      result.state = engine.state;
+                  }
               }
           }
       }
