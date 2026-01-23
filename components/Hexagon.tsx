@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Group, Path, Shape, Circle, Text, RegularPolygon } from 'react-konva';
 import Konva from 'konva';
@@ -18,7 +17,7 @@ interface HexagonVisualProps {
   onHexClick: (q: number, r: number) => void;
   onHover: (id: string | null) => void;
   isTutorialTarget?: boolean;
-  tutorialHighlightColor?: 'blue' | 'amber' | 'cyan'; // New prop
+  tutorialHighlightColor?: 'blue' | 'amber' | 'cyan';
 }
 
 const LEVEL_COLORS: Record<number, { fill: string; stroke: string; side: string }> = {
