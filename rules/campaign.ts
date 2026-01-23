@@ -9,7 +9,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     queueSize: 1, 
     targetLevel: 3, 
     targetCoins: 50, 
-    winType: 'OR',
+    winType: 'AND', // Requirement: Both
     difficulty: 'EASY',
     label: 'Training Simulation',
     isTutorial: true
@@ -21,7 +21,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     queueSize: 1, 
     targetLevel: 3, 
     targetCoins: 125,  
-    winType: 'OR',
+    winType: 'AND',
     difficulty: 'EASY',
     label: 'Sector Patrol'
   },
@@ -32,7 +32,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     queueSize: 1, 
     targetLevel: 4, 
     targetCoins: 175,  
-    winType: 'OR',
+    winType: 'AND',
     difficulty: 'EASY',
     label: 'Expansion'
   },
@@ -43,7 +43,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     queueSize: 1, 
     targetLevel: 5, 
     targetCoins: 250,  
-    winType: 'OR',
+    winType: 'AND',
     difficulty: 'MEDIUM',
     label: 'Escalation'
   },
@@ -54,7 +54,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     queueSize: 2, 
     targetLevel: 5, 
     targetCoins: 250,  
-    winType: 'OR',
+    winType: 'AND',
     difficulty: 'MEDIUM',
     label: 'Conflict'
   },

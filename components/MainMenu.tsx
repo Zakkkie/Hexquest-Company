@@ -104,7 +104,7 @@ const MainMenu: React.FC = () => {
       difficulty: difficulty,
       label: `${tier.label} (L${tier.level} + ${tier.coins}c)`,
       queueSize: difficulty === 'EASY' ? 1 : difficulty === 'MEDIUM' ? 2 : 3,
-      winType: 'OR'
+      winType: 'AND' // Enforce AND condition
     };
     startNewGame(winCondition);
     setShowMissionConfig(false);
