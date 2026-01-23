@@ -34,6 +34,7 @@ interface GameStore extends GameState {
   logout: () => void;
   startNewGame: (win: WinCondition) => void;
   startCampaignLevel: (levelId: number) => void;
+  startMission: () => void;
   abandonSession: () => void;
   togglePlayerGrowth: (intent?: 'RECOVER' | 'UPGRADE') => void;
   rechargeMove: () => void;
@@ -93,6 +94,9 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     timestamp: Date.now()
   };
 
+  // Give 1 move for tutorial so player can make the first step
+  const initialMoves = winCondition.isTutorial ? 1 : GAME_CONFIG.INITIAL_MOVES;
+
   return {
     stateVersion: 0,
     sessionId: Math.random().toString(36).substring(2, 15),
@@ -102,7 +106,8 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     grid: initialGrid,
     player: {
       id: 'player-1', type: EntityType.PLAYER, state: EntityState.IDLE, q: 0, r: 0,
-      playerLevel: 0, coins: GAME_CONFIG.INITIAL_COINS, moves: GAME_CONFIG.INITIAL_MOVES,
+      playerLevel: 0, coins: GAME_CONFIG.INITIAL_COINS, 
+      moves: initialMoves,
       totalCoinsEarned: 0, recentUpgrades: [], movementQueue: [],
       recoveredCurrentHex: false
     },
@@ -110,7 +115,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     currentTurn: 0,
     messageLog: [initialLog],
     botActivityLog: [], 
-    gameStatus: 'PLAYING',
+    gameStatus: 'BRIEFING', // Start in Briefing mode
     lastBotActionTime: Date.now(),
     isPlayerGrowing: false,
     playerGrowthIntent: null,
@@ -183,6 +188,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startCampaignLevel: (levelId) => {
      const config = CAMPAIGN_LEVELS.find(l => l.levelId === levelId) || CAMPAIGN_LEVELS[0];
      get().startNewGame(config);
+  },
+
+  startMission: () => {
+      if (engine) {
+          engine.startMission();
+          set({ session: engine.state });
+          audioService.play('UI_CLICK');
+      }
   },
 
   abandonSession: () => {
@@ -318,13 +331,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const res = engine.applyAction(session.player.id, action);
       if (res.ok) {
         audioService.play('MOVE');
+        
         // Tutorial Progression for Movement
-        if (session.tutorialStep === 'MOVE_UNIT') {
-           advanceTutorial('EXPLAIN_ACQUIRE');
-        } else if (session.tutorialStep === 'EXPLAIN_QUEUE') {
-           // If they moved away from the just-upgraded hex
-           advanceTutorial('FREE_PLAY');
-        }
+        if (session.tutorialStep === 'MOVE_1') get().advanceTutorial('ACQUIRE_1');
+        else if (session.tutorialStep === 'MOVE_2') get().advanceTutorial('ACQUIRE_2');
+        else if (session.tutorialStep === 'MOVE_3') get().advanceTutorial('ACQUIRE_3');
+
         set({ session: engine.state });
       } else {
         audioService.play('ERROR');

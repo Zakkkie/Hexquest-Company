@@ -1,8 +1,3 @@
-
-
-
-
-
 import { GameState, GameAction, GameEvent, ValidationResult, SessionState, EntityState, TutorialStep } from '../types';
 import { WorldIndex } from './WorldIndex';
 import { System } from './systems/System';
@@ -121,6 +116,14 @@ export class GameEngine {
           timestamp: Date.now()
       });
       
+      nextState.stateVersion++;
+      this._state = nextState;
+  }
+
+  public startMission() {
+      if (!this._state) return;
+      const nextState = this.cloneState(this._state);
+      nextState.gameStatus = 'PLAYING';
       nextState.stateVersion++;
       this._state = nextState;
   }
