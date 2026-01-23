@@ -1,6 +1,7 @@
 
 
 import React, { useEffect } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useGameStore } from './store.ts';
 import GameView from './components/GameView.tsx';
 import MainMenu from './components/MainMenu.tsx';
@@ -46,6 +47,9 @@ const App: React.FC = () => {
         {uiState === 'GAME' && <GameView key={sessionId} />}
         {uiState === 'LEADERBOARD' && <Leaderboard />}
       </div>
+
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
 
     </div>
   );
