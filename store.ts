@@ -1,6 +1,5 @@
-
 import { create } from 'zustand';
-import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep, Language } from './types.ts';
+import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep } from './types.ts';
 import { GAME_CONFIG } from './rules/config.ts';
 import { getHexKey, getNeighbors, findPath } from './services/hexUtils.ts';
 import { GameEngine } from './engine/GameEngine.ts';
@@ -29,14 +28,12 @@ interface GameStore extends GameState {
   session: SessionState | null;
 
   setUIState: (state: UIState) => void;
-  setLanguage: (lang: Language) => void;
   loginAsGuest: (n: string, c: string, i: string) => void;
   registerUser: (n: string, p: string, c: string, i: string) => AuthResponse;
   loginUser: (n: string, p: string) => AuthResponse;
   logout: () => void;
   startNewGame: (win: WinCondition) => void;
   startCampaignLevel: (levelId: number) => void;
-  startMission: () => void; // New method
   abandonSession: () => void;
   togglePlayerGrowth: (intent?: 'RECOVER' | 'UPGRADE') => void;
   rechargeMove: () => void;
@@ -44,12 +41,13 @@ interface GameStore extends GameState {
   confirmPendingAction: () => void;
   cancelPendingAction: () => void;
   advanceTutorial: (step: TutorialStep) => void;
-  checkTutorialCamera: (delta: number) => void;
+  checkTutorialCamera: (deltaX: number) => void;
   tick: () => void;
   showToast: (msg: string, type: 'error' | 'success' | 'info') => void;
   hideToast: () => void;
   toggleMute: () => void;
   playUiSound: (type: 'HOVER' | 'CLICK') => void;
+  setLanguage: (lang: 'EN' | 'RU') => void;
 }
 
 let engine: GameEngine | null = null;
@@ -95,10 +93,6 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     timestamp: Date.now()
   };
 
-  // TUTORIAL RESOURCES: 0 Coins, 15 Moves
-  const initialCoins = winCondition.isTutorial ? 0 : GAME_CONFIG.INITIAL_COINS;
-  const initialMoves = winCondition.isTutorial ? 15 : GAME_CONFIG.INITIAL_MOVES;
-
   return {
     stateVersion: 0,
     sessionId: Math.random().toString(36).substring(2, 15),
@@ -108,7 +102,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     grid: initialGrid,
     player: {
       id: 'player-1', type: EntityType.PLAYER, state: EntityState.IDLE, q: 0, r: 0,
-      playerLevel: 0, coins: initialCoins, moves: initialMoves,
+      playerLevel: 0, coins: GAME_CONFIG.INITIAL_COINS, moves: GAME_CONFIG.INITIAL_MOVES,
       totalCoinsEarned: 0, recentUpgrades: [], movementQueue: [],
       recoveredCurrentHex: false
     },
@@ -116,7 +110,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     currentTurn: 0,
     messageLog: [initialLog],
     botActivityLog: [], 
-    gameStatus: 'BRIEFING', // Start in Briefing mode
+    gameStatus: 'PLAYING',
     lastBotActionTime: Date.now(),
     isPlayerGrowing: false,
     playerGrowthIntent: null,
@@ -136,13 +130,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hasActiveSession: false,
   isMuted: false,
   session: null,
-  language: 'EN', // Default
+  language: 'EN',
   
+  setLanguage: (lang) => set({ language: lang }),
   setUIState: (uiState) => set({ uiState }),
-  setLanguage: (language) => {
-      audioService.play('UI_CLICK');
-      set({ language });
-  },
   
   loginAsGuest: (nickname, avatarColor, avatarIcon) => {
     audioService.play('UI_CLICK');
@@ -192,21 +183,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startCampaignLevel: (levelId) => {
      const config = CAMPAIGN_LEVELS.find(l => l.levelId === levelId) || CAMPAIGN_LEVELS[0];
      get().startNewGame(config);
-  },
-
-  startMission: () => {
-      if (!engine) return;
-      audioService.play('UI_CLICK');
-      // Hacky way to update engine status directly since we don't have a specific action for it yet, 
-      // but ideally this should go through an action. For now, direct mutation on wrapper logic is fine.
-      // Actually, we must use engine's clone logic if possible, or just set it on the next tick.
-      // Let's just update the store and engine state.
-      const s = { ...engine.state };
-      s.gameStatus = 'PLAYING';
-      s.sessionStartTime = Date.now(); // Reset timer on start
-      // Re-inject into engine
-      engine = new GameEngine(s); 
-      set({ session: engine.state });
   },
 
   abandonSession: () => {
@@ -385,20 +361,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ session: engine.state });
   },
 
-  checkTutorialCamera: (delta) => {
+  checkTutorialCamera: (deltaX: number) => {
       const { session, advanceTutorial } = get();
       if (session?.tutorialStep === 'CAMERA_ROTATE') {
-          if (Math.abs(delta) > 50) { // Enough movement
-              audioService.play('SUCCESS');
+          // Simple heuristic: if moved somewhat, advance
+          if (Math.abs(deltaX) > 50) { 
               advanceTutorial('MOVE_1');
           }
       }
   },
 
   tick: () => {
-      if (!engine) return;
-      // Do not process simulation if briefing is active
-      if (engine.state.gameStatus !== 'PLAYING') return;
+      if (!engine || engine.state.gameStatus !== 'PLAYING') return;
       
       const playerHexKey = getHexKey(engine.state.player.q, engine.state.player.r);
       const playerHexBefore = engine.state.grid[playerHexKey];
@@ -424,41 +398,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           result.state.effects = [];
       }
 
-      // TUTORIAL: CHECK FOUNDATION COMPLETION (3x L2 Neighbors)
-      if (result.state.tutorialStep === 'BUILD_FOUNDATION') {
-          const centerNeighbors = getNeighbors(0, 0);
-          const l2Count = centerNeighbors.filter(n => {
-              const h = result.state.grid[getHexKey(n.q, n.r)];
-              return h && h.currentLevel >= 2;
-          }).length;
-
-          if (l2Count >= 3) {
-              engine.setTutorialStep('UPGRADE_CENTER_3');
-              result.state.tutorialStep = 'UPGRADE_CENTER_3'; 
-              audioService.play('SUCCESS');
-          }
-      }
-
-      // --- FINAL TUTORIAL STEP CHECK: LEVEL 3 VICTORY ---
-      if (result.state.tutorialStep === 'UPGRADE_CENTER_3' || result.state.tutorialStep === 'FREE_PLAY' || result.state.tutorialStep === 'BUILD_FOUNDATION') {
-          if (result.state.player.playerLevel >= 3) {
-              if (engine.state.tutorialStep !== 'VICTORY_ANIMATION') {
-                  get().advanceTutorial('VICTORY_ANIMATION');
-                  
-                  // IMMEDIATE VICTORY TRIGGER (No Delay)
-                  if (engine) {
-                      engine.triggerVictory();
-                      audioService.play('SUCCESS');
-                      
-                      // FIX: Sync local result variable with the engine's new victory state.
-                      // This ensures that the final set() call at the bottom doesn't overwrite 
-                      // the Victory state with the stale 'PLAYING' snapshot.
-                      result.state = engine.state;
-                  }
-              }
-          }
-      }
-
       const hasEvents = result.events.length > 0;
       
       if (hasEvents) {
@@ -474,33 +413,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
                  case 'ACTION_DENIED': 
                  case 'ERROR': audioService.play('ERROR'); break;
                }
-               
-               // TUTORIAL PROGRESSION ON ACTIONS
-               if (event.type === 'MOVE_COMPLETE') {
-                   switch(result.state.tutorialStep) {
-                       case 'MOVE_1': get().advanceTutorial('ACQUIRE_1'); break;
-                       case 'MOVE_2': get().advanceTutorial('ACQUIRE_2'); break;
-                       case 'MOVE_3': get().advanceTutorial('ACQUIRE_3'); break;
-                   }
-               }
-
+               // Check tutorial progression
                if (event.type === 'SECTOR_ACQUIRED') {
-                   switch(result.state.tutorialStep) {
-                       case 'ACQUIRE_1': get().advanceTutorial('MOVE_2'); break;
-                       case 'ACQUIRE_2': get().advanceTutorial('MOVE_3'); break;
-                       case 'ACQUIRE_3': get().advanceTutorial('UPGRADE_CENTER_2'); break;
-                   }
+                   // Tutorial Steps
+                   const step = result.state.tutorialStep;
+                   if (step === 'ACQUIRE_1') get().advanceTutorial('MOVE_2');
+                   if (step === 'ACQUIRE_2') get().advanceTutorial('MOVE_3');
+                   if (step === 'ACQUIRE_3') get().advanceTutorial('UPGRADE_CENTER_2');
                }
-               
                if (event.type === 'LEVEL_UP') {
-                   switch(result.state.tutorialStep) {
-                       case 'UPGRADE_CENTER_2': get().advanceTutorial('BUILD_FOUNDATION'); break;
+                   const step = result.state.tutorialStep;
+                   if (step === 'UPGRADE_CENTER_2') get().advanceTutorial('BUILD_FOUNDATION');
+                   if (step === 'UPGRADE_CENTER_3') get().advanceTutorial('VICTORY_ANIMATION');
+               }
+               if (event.type === 'VICTORY') {
+                   if (result.state.tutorialStep === 'VICTORY_ANIMATION') {
+                       // Handle tutorial victory
+                       audioService.play('SUCCESS');
                    }
                }
             }
+            
             if (event.type === 'VICTORY') audioService.play('SUCCESS');
             if (event.type === 'DEFEAT') audioService.play('ERROR');
 
+            // ... Effects logic ...
             if (event.entityId) {
                  const entity = result.state.player.id === event.entityId 
                     ? result.state.player 

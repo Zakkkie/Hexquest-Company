@@ -27,6 +27,8 @@ interface Dictionary {
         BTN_GUEST: string;
         INPUT_NAME: string;
         INPUT_PASS: string;
+        AUTH_AVATAR_COLOR: string;
+        AUTH_INSIGNIA: string;
         CONFIG_TITLE: string;
         CONFIG_SUB: string;
         DIFF_EASY: string;
@@ -58,6 +60,21 @@ interface Dictionary {
         BTN_VIEW_LEADERBOARD: string;
         TIME: string;
         BRIEFING_RIVAL: string;
+        BRIEFING_TITLE: string;
+        BRIEFING_TARGET_RANK: string;
+        BRIEFING_TARGET_FUNDS: string;
+        BRIEFING_BTN_START: string;
+        HELP_RANK_DESC: string;
+        HELP_RANK_GOAL: string;
+        HELP_QUEUE_DESC: string;
+        HELP_QUEUE_HINT: string;
+        HELP_COINS_DESC: string;
+        HELP_COINS_GOAL: string;
+        HELP_MOVES_DESC: string;
+        HELP_MOVES_HINT: string;
+        MINI_LB_COMMANDER: string;
+        MINI_LB_CYCLE: string;
+        MINI_LB_CREDITS: string;
     };
     TOOLTIP: {
         CURRENT_LOC: string;
@@ -127,6 +144,8 @@ export const TEXT: Record<Language, Dictionary> = {
             BTN_GUEST: "Proceed as Guest",
             INPUT_NAME: "Callsign",
             INPUT_PASS: "Password",
+            AUTH_AVATAR_COLOR: "Avatar Color",
+            AUTH_INSIGNIA: "Insignia",
             CONFIG_TITLE: "Mission Config",
             CONFIG_SUB: "Select Operational Parameters",
             DIFF_EASY: "Cadet",
@@ -157,7 +176,22 @@ export const TEXT: Record<Language, Dictionary> = {
             BTN_RETRY: "Retry Sector",
             BTN_VIEW_LEADERBOARD: "View Leaderboard",
             TIME: "Time",
-            BRIEFING_RIVAL: "Rival Presence Detected"
+            BRIEFING_RIVAL: "Rival Presence Detected",
+            BRIEFING_TITLE: "Mission Briefing",
+            BRIEFING_TARGET_RANK: "Target Rank",
+            BRIEFING_TARGET_FUNDS: "Target Funds",
+            BRIEFING_BTN_START: "START MISSION",
+            HELP_RANK_DESC: "Your Rank determines your maximum clearance level.",
+            HELP_RANK_GOAL: "Goal: Rank",
+            HELP_QUEUE_DESC: "You must rotate between {0} different sectors.",
+            HELP_QUEUE_HINT: "Green dots show momentum.",
+            HELP_COINS_DESC: "Credits fund upgrades and can refuel movement.",
+            HELP_COINS_GOAL: "Goal: {0} Credits",
+            HELP_MOVES_DESC: "Moves are replenished by upgrading or recovering.",
+            HELP_MOVES_HINT: "Tip: High levels cost more.",
+            MINI_LB_COMMANDER: "Commander",
+            MINI_LB_CYCLE: "Cycle",
+            MINI_LB_CREDITS: "Credits"
         },
         TOOLTIP: {
             CURRENT_LOC: "Current Location",
@@ -225,6 +259,8 @@ export const TEXT: Record<Language, Dictionary> = {
             BTN_GUEST: "Войти как Гость",
             INPUT_NAME: "Позывной",
             INPUT_PASS: "Пароль",
+            AUTH_AVATAR_COLOR: "Цвет Аватара",
+            AUTH_INSIGNIA: "Эмблема",
             CONFIG_TITLE: "Настройка Миссии",
             CONFIG_SUB: "Выберите параметры операции",
             DIFF_EASY: "Кадет",
@@ -255,7 +291,22 @@ export const TEXT: Record<Language, Dictionary> = {
             BTN_RETRY: "Повторить",
             BTN_VIEW_LEADERBOARD: "К Рекордам",
             TIME: "Время",
-            BRIEFING_RIVAL: "ОБНАРУЖЕН СОПЕРНИК"
+            BRIEFING_RIVAL: "ОБНАРУЖЕН СОПЕРНИК",
+            BRIEFING_TITLE: "Брифинг Миссии",
+            BRIEFING_TARGET_RANK: "Целевой Ранг",
+            BRIEFING_TARGET_FUNDS: "Целевой Капитал",
+            BRIEFING_BTN_START: "НАЧАТЬ МИССИЮ",
+            HELP_RANK_DESC: "Ранг определяет максимальный уровень доступа.",
+            HELP_RANK_GOAL: "Цель: Ранг",
+            HELP_QUEUE_DESC: "Необходимо чередовать {0} разных сектора для апгрейда.",
+            HELP_QUEUE_HINT: "Зеленые точки показывают импульс.",
+            HELP_COINS_DESC: "Кредиты нужны для улучшений и экстренного топлива.",
+            HELP_COINS_GOAL: "Цель: {0} Кредитов",
+            HELP_MOVES_DESC: "Ходы восполняются при улучшении или восстановлении.",
+            HELP_MOVES_HINT: "Совет: Высокие уровни дороже в обслуживании.",
+            MINI_LB_COMMANDER: "Командир",
+            MINI_LB_CYCLE: "Цикл",
+            MINI_LB_CREDITS: "Кр"
         },
         TOOLTIP: {
             CURRENT_LOC: "Текущая позиция",
@@ -284,7 +335,7 @@ export const TEXT: Record<Language, Dictionary> = {
             FINAL_TITLE: "Фундамент Готов!",
             FINAL_DESC: "Вернитесь в центр и улучшите его до Уровня 3.",
             NO_POINTS_TITLE: "Нет Очков",
-            NO_POINTS_DESC: "Продолжай улучшать другие гексы до 2 уровня, но не забывай об очках апгрейда!",
+            NO_POINTS_DESC: "Нет заряда цикла. Захватывай новые территории (L0->L1), чтобы получить очки апгрейда.",
             NO_POINTS_HINT: "Иди на подсветку за очками."
         },
         LEADERBOARD: {

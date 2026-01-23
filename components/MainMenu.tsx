@@ -390,7 +390,7 @@ const MainMenu: React.FC = () => {
               {authMode === 'REGISTER' && (
                 <>
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">Avatar Color</label>
+                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">{t.AUTH_AVATAR_COLOR}</label>
                     <div className="flex gap-2 flex-wrap">
                       {AVATAR_COLORS.map(c => (
                         <button 
@@ -404,7 +404,7 @@ const MainMenu: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">Insignia</label>
+                    <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">{t.AUTH_INSIGNIA}</label>
                     <div className="flex gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800">
                       {AVATAR_ICONS.map(i => {
                         const Icon = i.icon;

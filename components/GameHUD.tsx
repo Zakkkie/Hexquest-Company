@@ -570,9 +570,9 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                            <div className="flex flex-col p-2 gap-1.5 max-h-[40vh] overflow-y-auto no-scrollbar">
                                {/* Ranking Content ... */}
                                <div className="grid grid-cols-4 px-2 py-1 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                                  <div className="col-span-2">Commander</div>
-                                  <div className="col-span-1 text-center">Cycle</div>
-                                  <div className="col-span-1 text-right">Credits</div>
+                                  <div className="col-span-2">{t.MINI_LB_COMMANDER}</div>
+                                  <div className="col-span-1 text-center">{t.MINI_LB_CYCLE}</div>
+                                  <div className="col-span-1 text-right">{t.MINI_LB_CREDITS}</div>
                                </div>
 
                                {[player, ...safeBots].sort((a, b) => (b.totalCoinsEarned || 0) - (a.totalCoinsEarned || 0)).map((e) => {
@@ -716,10 +716,10 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                         {helpTopic === 'MOVES' && t.MOVES}
                     </h3>
                     <div className="text-sm text-slate-400 leading-relaxed px-2">
-                        {helpTopic === 'RANK' && (<><p className="mb-2">Your Rank determines your maximum clearance level.</p><p className="text-indigo-400 font-bold">Goal: Rank {winCondition?.targetLevel}</p></>)}
-                        {helpTopic === 'QUEUE' && (<><p className="mb-2">You must rotate between {queueSize} different sectors.</p><p className="text-emerald-400 font-bold">Green dots show momentum.</p></>)}
-                        {helpTopic === 'COINS' && (<><p className="mb-2">Credits fund upgrades and can refuel movement.</p><p className="text-amber-500 font-bold">Goal: {winCondition?.targetCoins} Credits</p></>)}
-                        {helpTopic === 'MOVES' && (<><p className="mb-2">Moves are replenished by upgrading or recovering.</p><p className="text-blue-400 font-bold">Tip: High levels cost more.</p></>)}
+                        {helpTopic === 'RANK' && (<><p className="mb-2">{t.HELP_RANK_DESC}</p><p className="text-indigo-400 font-bold">{t.HELP_RANK_GOAL} {winCondition?.targetLevel}</p></>)}
+                        {helpTopic === 'QUEUE' && (<><p className="mb-2">{t.HELP_QUEUE_DESC.replace('{0}', queueSize.toString())}</p><p className="text-emerald-400 font-bold">{t.HELP_QUEUE_HINT}</p></>)}
+                        {helpTopic === 'COINS' && (<><p className="mb-2">{t.HELP_COINS_DESC}</p><p className="text-amber-500 font-bold">{t.HELP_COINS_GOAL.replace('{0}', (winCondition?.targetCoins || 0).toString())}</p></>)}
+                        {helpTopic === 'MOVES' && (<><p className="mb-2">{t.HELP_MOVES_DESC}</p><p className="text-blue-400 font-bold">{t.HELP_MOVES_HINT}</p></>)}
                     </div>
                 </div>
             </div>
@@ -751,7 +751,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                       <Target className="w-10 h-10 text-indigo-400" />
                   </div>
 
-                  <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-wide">Mission Briefing</h2>
+                  <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-wide">{t.BRIEFING_TITLE}</h2>
                   <p className="text-slate-400 text-sm font-mono tracking-widest uppercase mb-8">{winCondition?.label}</p>
 
                   {/* Rival Warning */}
@@ -764,7 +764,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
 
                   <div className="grid grid-cols-2 gap-4 w-full mb-8">
                       <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex flex-col items-center">
-                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Target Rank</div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">{t.BRIEFING_TARGET_RANK}</div>
                           <div className="flex items-center gap-3">
                               <div className="text-2xl font-black text-indigo-400">L{winCondition?.targetLevel}</div>
                               <div className="w-8 h-8 relative">
@@ -777,7 +777,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                           </div>
                       </div>
                       <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex flex-col items-center justify-center">
-                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Target Funds</div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">{t.BRIEFING_TARGET_FUNDS}</div>
                           <div className="text-2xl font-black text-amber-400">{winCondition?.targetCoins}</div>
                       </div>
                   </div>
@@ -786,7 +786,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                       onClick={startMission}
                       className="w-full py-4 bg-white hover:bg-slate-200 text-slate-900 font-black text-sm uppercase tracking-widest rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all transform hover:scale-[1.02]"
                   >
-                      START MISSION
+                      {t.BRIEFING_BTN_START}
                   </button>
               </div>
           </div>
