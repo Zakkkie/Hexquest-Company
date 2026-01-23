@@ -58,8 +58,6 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
   const initialGrid: Record<string, Hex> = { [getHexKey(0,0)]: startHex };
   getNeighbors(0, 0).forEach(n => { initialGrid[getHexKey(n.q, n.r)] = { id: getHexKey(n.q,n.r), q:n.q, r:n.r, currentLevel:0, maxLevel:0, progress:0, revealed:true }; });
   
-  // Note: No pre-seeded support hexes in Tutorial. Player builds from scratch.
-
   const botCount = winCondition.botCount || 0;
   const bots: Entity[] = [];
   const spawnPoints = [{ q: 0, r: -2 }, { q: 2, r: -2 }, { q: 2, r: 0 }, { q: 0, r: 2 }, { q: -2, r: 2 }, { q: -2, r: 0 }];
@@ -96,7 +94,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     timestamp: Date.now()
   };
 
-  // TUTORIAL RESOURCES: 0 Coins, 15 Moves (Need enough to move between 3 hexes multiple times)
+  // TUTORIAL RESOURCES: 0 Coins, 15 Moves
   const initialCoins = winCondition.isTutorial ? 0 : GAME_CONFIG.INITIAL_COINS;
   const initialMoves = winCondition.isTutorial ? 15 : GAME_CONFIG.INITIAL_MOVES;
 
@@ -278,7 +276,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   return; 
               }
           }
-          // Note: BUILD_FOUNDATION and UPGRADE_CENTER_3 allow free movement to accomplish goals
       }
 
       if (pendingConfirmation) {
@@ -401,7 +398,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       // TUTORIAL: CHECK FOUNDATION COMPLETION (3x L2 Neighbors)
-      // Transition only if strictly in this step
       if (result.state.tutorialStep === 'BUILD_FOUNDATION') {
           const centerNeighbors = getNeighbors(0, 0);
           const l2Count = centerNeighbors.filter(n => {
@@ -417,16 +413,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       // --- FINAL TUTORIAL STEP CHECK: LEVEL 3 VICTORY ---
-      // We check this every tick to ensure we don't miss the event
       if (result.state.tutorialStep === 'UPGRADE_CENTER_3' || result.state.tutorialStep === 'FREE_PLAY' || result.state.tutorialStep === 'BUILD_FOUNDATION') {
           if (result.state.player.playerLevel >= 3) {
-              // Check if we already triggered animation
               if (engine.state.tutorialStep !== 'VICTORY_ANIMATION') {
                   get().advanceTutorial('VICTORY_ANIMATION');
                   
                   // DELAYED VICTORY TRIGGER (3 Seconds)
                   setTimeout(() => {
-                      // Force victory status in engine if still in animation state
                       if (engine && engine.state.tutorialStep === 'VICTORY_ANIMATION') {
                           engine.triggerVictory();
                           set({ session: engine.state });
@@ -479,7 +472,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (event.type === 'VICTORY') audioService.play('SUCCESS');
             if (event.type === 'DEFEAT') audioService.play('ERROR');
 
-            // ... Effects logic (simplified for brevity, assume existing) ...
             if (event.entityId) {
                  const entity = result.state.player.id === event.entityId 
                     ? result.state.player 
@@ -535,9 +527,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       if (hasEvents || true) {
-          // ... Standard UI update logic ...
            let newToast = get().toast;
-           // Error toast logic...
            const error = result.events.find(e => e.type === 'ACTION_DENIED' || e.type === 'ERROR');
            if (error && error.entityId === engine.state.player.id) {
                newToast = { message: error.message || 'Error', type: 'error', timestamp: Date.now() };
