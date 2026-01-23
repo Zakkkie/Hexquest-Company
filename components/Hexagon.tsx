@@ -129,7 +129,9 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
     const bottoms = [];
     const faces = [];
     const selectionTops = [];
-    const selRadius = Math.max(0, HEX_SIZE - 3);
+    // Ensure selection/highlight is strictly inside the hex borders
+    // HEX_SIZE is 35. Radius 29 ensures stroke width 3-4 is contained.
+    const selRadius = Math.max(0, HEX_SIZE - 6); 
 
     for (let i = 0; i < 6; i++) {
         tops.push(getPoint(i, offsetY, HEX_SIZE));
@@ -417,12 +419,12 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
             ref={tutorialHighlightRef}
             data={selectionPathData}
             stroke={tutorialColorHex}
-            strokeWidth={4}
+            strokeWidth={3}
             fillEnabled={false}
             perfectDrawEnabled={false}
             shadowColor={tutorialColorHex}
-            shadowBlur={20}
-            shadowOpacity={1}
+            shadowBlur={10}
+            shadowOpacity={0.8}
             listening={false}
           />
       )}

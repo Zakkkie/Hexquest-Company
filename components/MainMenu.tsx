@@ -258,7 +258,7 @@ const MainMenu: React.FC = () => {
         
         {/* Title */}
         <div className="text-center mb-6"> 
-          <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-amber-600 italic tracking-tighter drop-shadow-[0_0_25px_rgba(245,158,11,0.4)]">
+          <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-400 to-amber-600 italic tracking-tighter drop-shadow-[0_0_25px_rgba(245,158,11,0.4)]">
             {t.TITLE}
           </h1>
           <p className="text-[10px] md:text-xs text-slate-500 font-mono tracking-[0.6em] uppercase mt-2 opacity-60">
