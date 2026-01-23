@@ -1,5 +1,4 @@
 
-
 import React, { useRef, useLayoutEffect, useState, useEffect } from 'react';
 import { Group, Circle, Ellipse, Rect, Text } from 'react-konva';
 import Konva from 'konva';
@@ -20,7 +19,6 @@ interface UnitProps {
 }
 
 // --- TRAIL (GHOST) COMPONENT ---
-// Renders a fading echo of the unit at its previous position
 const TrailShadow: React.FC<{ x: number; y: number; color: string }> = ({ x, y, color }) => {
     const ref = useRef<Konva.Group>(null);
 
@@ -28,13 +26,12 @@ const TrailShadow: React.FC<{ x: number; y: number; color: string }> = ({ x, y, 
         const node = ref.current;
         if (!node) return;
 
-        // Animate fading out
         const tween = new Konva.Tween({
             node: node,
             opacity: 0,
-            scaleX: 0.8, // Slight shrink
+            scaleX: 0.8,
             scaleY: 0.8,
-            duration: GAME_CONFIG.MOVEMENT_ANIMATION_DURATION, // Match move duration
+            duration: GAME_CONFIG.MOVEMENT_ANIMATION_DURATION,
             easing: Konva.Easings.EaseOut
         });
         tween.play();
@@ -44,13 +41,12 @@ const TrailShadow: React.FC<{ x: number; y: number; color: string }> = ({ x, y, 
 
     return (
         <Group ref={ref} x={x} y={y} opacity={0.4} listening={false}>
-             {/* Simplified Body Shape for Trail */}
              <Rect
                 x={-6} y={-10} 
                 width={12} height={20}
                 fill={color}
                 cornerRadius={4}
-                offsetY={8} // Center the scaling roughly
+                offsetY={8} 
             />
         </Group>
     );
@@ -104,18 +100,17 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
 
   const user = useGameStore(state => state.user);
   
-  // Visual State
   const [coinPopups, setCoinPopups] = useState<{ id: number; amount: number }[]>([]);
   const [trails, setTrails] = useState<{ id: number; x: number; y: number }[]>([]);
   
   const prevCoinsRef = useRef(totalCoinsEarned);
 
-  // Target Calc
+  // Calculate Target Positions
   const { x, y } = hexToPixel(q, r, rotation);
   const hexHeight = 10 + (hexLevel * 6);
-  const zOffset = -hexHeight;
+  const zOffset = -hexHeight; // Negative Y is "Up" in Canvas
 
-  // Logic Tracking for Move Detection
+  // Logic Tracking
   const prevLogic = useRef({ q, r });
   
   const isPlayer = type === EntityType.PLAYER;
@@ -139,7 +134,6 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
 
     const anim = new Konva.Animation((frame) => {
         if (!frame) return;
-        // Subtle sine wave scaling (1.0 to 1.05)
         const scale = 1 + Math.sin(frame.time / 400) * 0.04;
         node.scale({ x: scale, y: scale });
     }, node.getLayer());
@@ -150,7 +144,7 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
     };
   }, []);
 
-  // MOVEMENT & TRAIL LOGIC
+  // MOVEMENT & ELEVATION LOGIC
   useLayoutEffect(() => {
     const node = groupRef.current;
     const elevationNode = elevationGroupRef.current;
@@ -165,14 +159,9 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
             node.position({ x, y });
         } else {
             // MOVEMENT DETECTED
-            
-            // A. Spawn Trail at OLD position (Visual X/Y is handled by groupRef)
-            // We need to account for height offset in the trail if we want it to look 3D,
-            // but trails are usually 'ghosts' of the body.
-            // Current visual Y of body = node.y() + elevationNode.y().
             const startX = node.x();
-            const startY = node.y(); // This is the HEX center Y.
-            const startZ = elevationNode.y(); // This is the vertical offset.
+            const startY = node.y(); 
+            const startZ = elevationNode.y(); 
             
             const tId = Date.now() + Math.random();
             // Spawn trail at the specific height it was at
@@ -183,7 +172,7 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
                 setTrails(prev => prev.filter(t => t.id !== tId));
             }, GAME_CONFIG.MOVEMENT_ANIMATION_DURATION * 1000 + 100);
 
-            // B. Tween to NEW position
+            // Tween X/Y
             node.to({
                 x,
                 y,
@@ -195,14 +184,17 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
             });
         }
     } else {
-        // Camera Rotation (Snap)
+        // Camera Rotation or Resize (Snap X/Y)
+        // We only snap if we are NOT currently tweening (checked via Konva internally usually, but here we assume snap is safer for rotation)
         node.position({ x, y });
     }
 
-    // --- 2. VERTICAL MOVEMENT (Terrain) ---
+    // --- 2. VERTICAL MOVEMENT (Terrain/Growth) ---
+    // We ALWAYS animate Z changes to handle jumps between high/low hexes smoothly
+    // even if X/Y didn't change (e.g. hex grew under us)
     elevationNode.to({
         y: zOffset,
-        duration: GAME_CONFIG.MOVEMENT_ANIMATION_DURATION,
+        duration: isMove ? GAME_CONFIG.MOVEMENT_ANIMATION_DURATION : 0.4, // Slower for moves, faster for growth
         easing: Konva.Easings.EaseInOut
     });
 
@@ -211,13 +203,12 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
 
   return (
     <Group>
-      {/* 1. TRAILS (Rendered behind the unit locally, though Z-ordering depends on Layer sort) */}
-      {/* Note: In a strict Z-buffer, these should be separate, but here they trail visually behind the movement vector usually. */}
+      {/* Trails */}
       {trails.map(t => (
           <TrailShadow key={t.id} x={t.x} y={t.y} color={finalColor} />
       ))}
 
-      {/* 2. MAIN UNIT GROUP */}
+      {/* Main Unit */}
       <Group ref={groupRef} listening={false}>
         <Group ref={elevationGroupRef}>
             {/* Shadow */}
@@ -226,7 +217,7 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
                fill="rgba(0,0,0,0.4)" blurRadius={2}
             />
 
-            {/* Body (Breathable) */}
+            {/* Body */}
             <Group y={-8} ref={bodyRef}>
               <Rect
                   x={-6} y={-10} width={12} height={20}
@@ -242,7 +233,6 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
               />
             </Group>
 
-            {/* Selection Ring (Static relative to body breathing) */}
             {isPlayer && (
               <Ellipse
                   y={0} radiusX={16} radiusY={10}
@@ -251,7 +241,6 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
               />
             )}
             
-            {/* Coin Popups */}
             {coinPopups.map(p => (
               <CoinPopup key={p.id} amount={p.amount} y={-35} />
             ))}

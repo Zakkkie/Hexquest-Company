@@ -104,6 +104,9 @@ const FireworksOverlay: React.FC = () => {
 const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({ step, onNext }) => {
     const [isVisible, setIsVisible] = useState(true);
     const language = useGameStore(state => state.language);
+    const player = useGameStore(state => state.session?.player);
+    const winCondition = useGameStore(state => state.session?.winCondition);
+    
     const t = TEXT[language].TUTORIAL;
     
     useEffect(() => {
@@ -112,17 +115,20 @@ const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({
 
     if (step === 'NONE' || step === 'FREE_PLAY' || step === 'VICTORY_ANIMATION') return null;
 
-    const buttonOffsetClass = "left-[calc(50%+50px)]";
-    
-    const player = useGameStore(state => state.session?.player);
-    const winCondition = useGameStore(state => state.session?.winCondition);
     const queueSize = winCondition?.queueSize || 1;
-    
     const hasUpgradePoint = player && player.recentUpgrades.length >= queueSize;
 
     const handleDismiss = () => {
         setIsVisible(false);
     };
+
+    // Generic Instruction Panel
+    const renderInstructionPanel = (title: string, desc: string, highlight: boolean = false) => (
+        <div className={`absolute top-20 left-1/2 -translate-x-1/2 max-w-sm w-[90%] pointer-events-auto bg-slate-900/95 border ${highlight ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]' : 'border-slate-600'} p-4 rounded-xl flex flex-col items-center text-center animate-in fade-in slide-in-from-top-4 duration-500`}>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-1 ${highlight ? 'text-amber-400' : 'text-white'}`}>{title}</h3>
+            <p className="text-xs text-slate-300 leading-relaxed">{desc}</p>
+        </div>
+    );
 
     return (
         <div className="absolute inset-0 z-[60] pointer-events-none select-none overflow-hidden">
@@ -146,65 +152,23 @@ const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-pulse">
                     <Move3d className="w-12 h-12 md:w-16 md:h-16 text-white mb-2 drop-shadow-[0_0_10px_rgba(0,0,0,1)]" />
                     <div className="bg-black/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur">
-                        <p className="text-white font-bold text-sm md:text-lg uppercase tracking-widest whitespace-nowrap">Rotate View</p>
-                    </div>
-                    <div className="mt-2 flex flex-col items-center gap-1">
-                        <p className="text-slate-400 text-[10px] md:text-xs font-mono uppercase">{t.CAMERA_DESC}</p>
-                        <div className="flex gap-12 md:gap-20 mt-2">
-                             <ArrowDown className="w-5 h-5 md:w-6 md:h-6 text-amber-500 animate-bounce" />
-                             <ArrowDown className="w-5 h-5 md:w-6 md:h-6 text-amber-500 animate-bounce" />
-                        </div>
+                        <p className="text-white font-bold text-sm md:text-lg uppercase tracking-widest whitespace-nowrap">{t.CAMERA_DESC}</p>
                     </div>
                 </div>
             )}
 
-            {/* MOVEMENTS - Compact Labels */}
-            {step === 'MOVE_1' && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div className="bg-blue-900/90 px-4 py-1.5 rounded-full border border-blue-500/50 backdrop-blur shadow-lg">
-                        <span className="text-blue-100 font-bold uppercase tracking-wider text-xs whitespace-nowrap">{t.MOVE_A}</span>
-                    </div>
-                    <MousePointer2 className="w-8 h-8 text-blue-400 fill-blue-400/20 rotate-[-15deg] mt-2 animate-bounce" />
-                </div>
-            )}
+            {/* MOVEMENTS - Text Only Instructions at Top */}
+            {step === 'MOVE_1' && renderInstructionPanel("Expansion Protocol", t.MOVE_A, true)}
+            {step === 'MOVE_2' && renderInstructionPanel("Expansion Protocol", t.MOVE_B, true)}
+            {step === 'MOVE_3' && renderInstructionPanel("Regroup", t.MOVE_CENTER, true)}
 
-            {step === 'MOVE_2' && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div className="bg-blue-900/90 px-4 py-1.5 rounded-full border border-blue-500/50 backdrop-blur shadow-lg">
-                        <span className="text-blue-100 font-bold uppercase tracking-wider text-xs whitespace-nowrap">{t.MOVE_B}</span>
-                    </div>
-                    <MousePointer2 className="w-8 h-8 text-blue-400 fill-blue-400/20 rotate-[15deg] mt-2 animate-bounce" />
-                </div>
-            )}
+            {/* ACQUISITIONS - Text Only */}
+            {step === 'ACQUIRE_1' && renderInstructionPanel("Claim Territory", "Click the Amber Button below to acquire this sector.", true)}
+            {step === 'ACQUIRE_2' && renderInstructionPanel("Claim Territory", "Acquire the second sector.", true)}
+            {step === 'ACQUIRE_3' && renderInstructionPanel("Secure Center", "Ensure the central command post is secure.", true)}
 
-            {step === 'MOVE_3' && (
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div className="bg-emerald-900/90 px-4 py-1.5 rounded-full border border-emerald-500/50 backdrop-blur shadow-lg text-center">
-                        <p className="text-emerald-100 font-bold uppercase tracking-wider text-xs whitespace-nowrap">{t.MOVE_CENTER}</p>
-                    </div>
-                    <Footprints className="w-8 h-8 text-emerald-400 fill-emerald-400/20 mt-2 animate-bounce" />
-                </div>
-            )}
-
-            {/* ACQUISITIONS - Positioned near button but cleaner */}
-            {(step === 'ACQUIRE_1' || step === 'ACQUIRE_2' || step === 'ACQUIRE_3') && (
-                <div className={`absolute bottom-32 md:bottom-36 ${buttonOffsetClass} -translate-x-1/2 flex flex-col items-center`}>
-                    <div className="bg-amber-900/90 px-3 py-1 rounded-full border border-amber-500/50 backdrop-blur mb-1">
-                        <span className="text-amber-100 font-bold uppercase tracking-wider text-[10px]">{t.ACQUIRE}</span>
-                    </div>
-                    <ArrowDown className="w-8 h-8 text-amber-500 animate-bounce" />
-                </div>
-            )}
-
-            {/* UPGRADE CENTER 2 */}
-            {step === 'UPGRADE_CENTER_2' && (
-                <div className={`absolute bottom-32 md:bottom-36 ${buttonOffsetClass} -translate-x-1/2 flex flex-col items-center`}>
-                    <div className="bg-indigo-900/90 px-3 py-1 rounded-full border border-indigo-500/50 backdrop-blur mb-1 flex flex-col items-center">
-                        <span className="text-indigo-100 font-bold uppercase tracking-wider text-[10px]">{t.UPGRADE_L2}</span>
-                    </div>
-                    <ArrowDown className="w-8 h-8 text-indigo-500 animate-bounce" />
-                </div>
-            )}
+            {/* UPGRADE */}
+            {step === 'UPGRADE_CENTER_2' && renderInstructionPanel(t.UPGRADE_L2, "Use your new territory as support to upgrade the center.", true)}
 
             {/* STEP 3 & 4: BUILD FOUNDATION & FINAL UPGRADE - COMPACT MOBILE */}
             {(step === 'BUILD_FOUNDATION' || step === 'UPGRADE_CENTER_3') && isVisible && (
@@ -269,7 +233,7 @@ const TutorialOverlay: React.FC<{ step: TutorialStep; onNext: () => void }> = ({
                              <div className="text-left md:text-center flex-1">
                                 <h3 className="text-xs md:text-lg font-bold text-red-400 uppercase">{t.NO_POINTS_TITLE}</h3>
                                 <p className="text-[10px] md:text-xs text-white md:mb-2 hidden md:block">{t.NO_POINTS_DESC}</p>
-                                <p className="text-[9px] text-red-200 md:hidden">Capture a new sector to continue cycle.</p>
+                                <p className="text-[9px] text-red-200 md:hidden">{t.NO_POINTS_HINT}</p>
                              </div>
                         </div>
                     )}
@@ -308,31 +272,31 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
   const toggleMute = useGameStore(state => state.toggleMute);
   const playUiSound = useGameStore(state => state.playUiSound);
   const startCampaignLevel = useGameStore(state => state.startCampaignLevel);
+  const showToast = useGameStore(state => state.showToast); 
 
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [isRankingsOpen, setIsRankingsOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<'RANK' | 'QUEUE' | 'COINS' | 'MOVES' | null>(null);
 
   const t = TEXT[language].HUD;
-  const tt = TEXT[language].TOOLTIP; // Use separate dictionary for Tooltips
+  const tt = TEXT[language].TOOLTIP; 
   
-  if (!grid || !player || !bots || !difficulty) return null;
-
+  // SAFE DEFAULTS to prevent crashes if hooks run before return
   const queueSize = winCondition?.queueSize || 3;
-  const currentHex = grid[getHexKey(player.q, player.r)];
-  const neighbors = getNeighbors(player.q, player.r);
-  const safeBots = (bots || []).filter(b => b && typeof b.q === 'number' && typeof b.r === 'number');
-  const botPositions = safeBots.map(b => ({ q: b.q, r: b.r }));
-  const isMoving = player.state === EntityState.MOVING;
-  const canRecover = !player.recoveredCurrentHex;
+  const currentHex = (grid && player) ? grid[getHexKey(player.q, player.r)] : undefined;
+  const neighbors = player ? getNeighbors(player.q, player.r) : [];
+  const safeBots = useMemo(() => (bots || []).filter(b => b && typeof b.q === 'number' && typeof b.r === 'number'), [bots]);
+  const botPositions = useMemo(() => safeBots.map(b => ({ q: b.q, r: b.r })), [safeBots]);
+  const isMoving = player?.state === EntityState.MOVING;
+  const canRecover = player ? !player.recoveredCurrentHex : false;
 
   const growthCondition = useMemo(() => {
-    if (!currentHex) return { canGrow: false, reason: 'Invalid Hex' };
+    if (!currentHex || !player || !grid) return { canGrow: false, reason: 'Invalid Hex' };
     return checkGrowthCondition(currentHex, player, neighbors, grid, botPositions, queueSize);
   }, [currentHex, player, grid, neighbors, botPositions, queueSize]);
 
   const upgradeCondition = useMemo(() => {
-    if (!currentHex) return { canGrow: false, reason: 'Invalid Hex' };
+    if (!currentHex || !player || !grid) return { canGrow: false, reason: 'Invalid Hex' };
     const simulatedHex = { ...currentHex, currentLevel: Math.max(0, currentHex.maxLevel) };
     return checkGrowthCondition(simulatedHex, player, neighbors, grid, botPositions, queueSize);
   }, [currentHex, player, grid, neighbors, botPositions, queueSize]);
@@ -369,7 +333,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
   }, [currentHex, isPlayerGrowing, canUpgrade, playerGrowthIntent]);
 
   const tooltipData = useMemo(() => {
-    if (!hoveredHexId) return null;
+    if (!hoveredHexId || !grid || !player) return null;
     const hex = grid[hoveredHexId];
     if (!hex) return null;
 
@@ -432,7 +396,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
     return { 
         hex, label, costMoves, costCoins, canAffordCoins, isReachable, isLocked, statusText, statusColor, Icon 
     };
-  }, [hoveredHexId, grid, player.q, player.r, player.playerLevel, player.moves, player.coins, safeBots, tt]);
+  }, [hoveredHexId, grid, player?.q, player?.r, player?.playerLevel, player?.moves, player?.coins, safeBots, tt]);
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.ceil(ms / 1000);
@@ -446,7 +410,11 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
     onCenterPlayer(); 
     if (isMoving) return;
     if (!currentHex) return;
-    if (!canRecover) return; 
+    if (!canRecover) {
+        showToast("No recoverable supplies here. Try exploring or upgrading.", 'error');
+        playUiSound('CLICK'); 
+        return;
+    } 
     togglePlayerGrowth('RECOVER');
   };
 
@@ -454,7 +422,10 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
     onCenterPlayer(); 
     if (isMoving) return; 
     if (!currentHex) return;
-    if (!canUpgrade) return;
+    if (!canUpgrade) {
+        showToast(upgradeCondition.reason || "Cannot Upgrade", 'error');
+        return;
+    }
     togglePlayerGrowth('UPGRADE');
   };
 
@@ -464,7 +435,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
 
   const winner = useMemo(() => {
       if (gameStatus === 'VICTORY') return player;
-      if (gameStatus === 'DEFEAT' && winCondition) {
+      if (gameStatus === 'DEFEAT' && winCondition && safeBots) {
           const w = safeBots.find(b => {
               const reachedLevel = b.playerLevel >= winCondition.targetLevel;
               const reachedCoins = b.totalCoinsEarned >= winCondition.targetCoins;
@@ -476,6 +447,9 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
       return null;
   }, [gameStatus, player, safeBots, winCondition]);
 
+  // MOVED CONDITIONAL RETURN TO BOTTOM (Fixes React Error #300)
+  if (!grid || !player || !bots || !difficulty) return null;
+
   const isCampaignLevel = winCondition && winCondition.levelId >= 0;
   const showNextLevel = gameStatus === 'VICTORY' && isCampaignLevel && CAMPAIGN_LEVELS.some(l => l.levelId === winCondition.levelId + 1);
   const isCampaignComplete = gameStatus === 'VICTORY' && isCampaignLevel && !showNextLevel;
@@ -483,7 +457,11 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
 
   const isTutorialActive = tutorialStep && tutorialStep !== 'NONE' && tutorialStep !== 'FREE_PLAY' && tutorialStep !== 'VICTORY_ANIMATION';
   const isActionStep = ['ACQUIRE_1', 'ACQUIRE_2', 'ACQUIRE_3', 'UPGRADE_CENTER_2', 'UPGRADE_CENTER_3'].includes(tutorialStep || '');
-  const shouldDimControls = isTutorialActive && !isActionStep && tutorialStep !== 'BUILD_FOUNDATION' && tutorialStep !== 'CAMERA_ROTATE';
+  
+  // Refined Dimming Logic for Tutorial
+  const dimNav = isTutorialActive && tutorialStep !== 'CAMERA_ROTATE' && tutorialStep !== 'BUILD_FOUNDATION' && !tutorialStep?.startsWith('MOVE_');
+  const dimRecover = isTutorialActive && tutorialStep !== 'BUILD_FOUNDATION'; 
+  const dimUpgrade = isTutorialActive && !isActionStep && tutorialStep !== 'BUILD_FOUNDATION';
   
   const isCameraTutorial = tutorialStep === 'CAMERA_ROTATE';
 
@@ -495,10 +473,8 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
       {/* HEADER */}
       <div className="absolute inset-x-0 top-0 p-2 md:p-4 pointer-events-none z-30 pt-[max(0.5rem,env(safe-area-inset-top))]">
           <div className="max-w-7xl mx-auto w-full flex justify-between items-start gap-1 md:gap-2">
-               
-               {/* LEFT: STATS PILL (Optimized for Mobile) */}
+               {/* Stats Pill */}
                <div className="pointer-events-auto flex items-center bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-lg overflow-x-auto no-scrollbar px-2 md:px-2 py-1 md:py-2 gap-1 md:gap-2 h-10 md:h-16 flex-1 min-w-0 mr-2 md:mr-0">
-                   
                    {/* Rank */}
                    <div onClick={() => { setHelpTopic('RANK'); playUiSound('CLICK'); }} className="flex items-center gap-1.5 md:gap-3 cursor-pointer md:cursor-help opacity-90 hover:opacity-100 group shrink-0 md:px-4 md:bg-slate-800/30 md:rounded-xl md:h-full transition-colors pl-1">
                        <div className="hidden md:block p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
@@ -568,7 +544,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                    </div>
                </div>
 
-               {/* RIGHT: SYSTEM CONTROLS (Compact on Mobile) */}
+               {/* Right System Controls */}
                <div className="pointer-events-auto flex items-start gap-1 md:gap-2 shrink-0">
                    <button 
                       onClick={() => { toggleMute(); playUiSound('CLICK'); }}
@@ -644,7 +620,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
       </div>
 
       {/* HEX CONTROLS: BOTTOM BAR (Scaled on Mobile) */}
-      <div className={`absolute bottom-4 md:bottom-8 w-full flex justify-center items-end gap-3 md:gap-5 pointer-events-none z-40 pb-[env(safe-area-inset-bottom)] transition-all duration-300 scale-90 md:scale-100 origin-bottom ${shouldDimControls ? 'opacity-30 blur-[2px]' : 'opacity-100'}`}>
+      <div className={`absolute bottom-4 md:bottom-8 w-full flex justify-center items-end gap-3 md:gap-5 pointer-events-none z-40 pb-[env(safe-area-inset-bottom)] transition-all duration-300 scale-90 md:scale-100 origin-bottom`}>
         
         {/* ROTATE LEFT */}
         <div className="pointer-events-auto mb-1">
@@ -653,6 +629,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
             onClick={() => { onRotateCamera('left'); playUiSound('CLICK'); }} 
             variant={isCameraTutorial ? 'amber' : 'slate'}
             pulsate={isCameraTutorial}
+            dimmed={dimNav}
           >
             <RotateCcw className="w-5 h-5 text-slate-300 group-hover:text-white" />
           </HexButton>
@@ -680,10 +657,11 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
               <>
                 <HexButton 
                   onClick={handleGrowClick} 
-                  disabled={!canRecover || isMoving}
+                  disabled={isMoving} // UX Fix: Enable click even if invalid, so we can show Toast error
                   variant={(canRecover && !isMoving) ? 'blue' : 'slate'}
-                  size="lg" // CHANGED: Equal size to upgrade
+                  size="lg" 
                   active={false}
+                  dimmed={dimRecover} 
                 >
                     <RefreshCw className={`w-8 h-8 ${(canRecover && !isMoving) ? 'text-cyan-50 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-slate-500'}`} />
                 </HexButton>
@@ -691,10 +669,11 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
                 <div className={isActionStep ? 'animate-bounce drop-shadow-[0_0_20px_rgba(245,158,11,1)]' : ''}>
                   <HexButton 
                     onClick={handleUpgradeClick} 
-                    disabled={!canUpgrade || isMoving}
+                    disabled={isMoving} // UX Fix: Enable click even if invalid
                     variant={(canUpgrade && !isMoving) ? 'amber' : 'slate'}
-                    size="lg" // CHANGED: Equal size to recover
+                    size="lg" 
                     pulsate={canUpgrade && !isMoving || isActionStep} 
+                    dimmed={dimUpgrade}
                   >
                       <ChevronsUp className={`w-10 h-10 ${(canUpgrade && !isMoving) ? 'text-amber-50 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-slate-500'}`} />
                   </HexButton>
@@ -710,6 +689,7 @@ const GameHUD: React.FC<GameHUDProps> = ({ hoveredHexId, onRotateCamera, onCente
             onClick={() => { onRotateCamera('right'); playUiSound('CLICK'); }} 
             variant={isCameraTutorial ? 'amber' : 'slate'}
             pulsate={isCameraTutorial}
+            dimmed={dimNav}
           >
              <RotateCw className="w-5 h-5 text-slate-300 group-hover:text-white" />
           </HexButton>
