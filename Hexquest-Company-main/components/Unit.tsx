@@ -219,7 +219,10 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
     }, node.getLayer());
 
     anim.start();
-    return () => { anim.stop(); };
+    // FIX: Must return a function that returns VOID, not the Animation object
+    return () => {
+        anim.stop();
+    };
   }, []);
 
   // MOVEMENT LOGIC
