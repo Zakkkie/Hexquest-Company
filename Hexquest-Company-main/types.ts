@@ -81,6 +81,9 @@ export interface Entity {
   
   // Timestamp of the last physical move to throttle logic to animation speed
   lastMoveTime?: number; 
+
+  // Timestamp of last AI action
+  lastActionTime?: number;
 }
 
 export type GameEventType = 

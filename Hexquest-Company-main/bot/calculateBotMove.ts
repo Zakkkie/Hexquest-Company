@@ -69,14 +69,28 @@ export const calculateBotMove = (
           const attackMove = escapeRoutes.find(n => n.q === player.q && n.r === player.r);
           const target = attackMove || escapeRoutes[Math.floor(Math.random() * escapeRoutes.length)];
           
-          // CRITICAL FIX: Affordability Check
-          // Calculate cost before attempting move to avoid infinite error loops in Engine
+          // RESOURCE CHECK
+          const moveCost = 1; // Assuming minimum move cost for simplicity in panic check
+          const totalResourceValue = bot.moves + (bot.coins / GAME_CONFIG.EXCHANGE_RATE_COINS_PER_MOVE);
+          
+          if (totalResourceValue < moveCost) {
+              // We are bankrupt. Cannot move.
+              // Try to recover here if possible, otherwise just wait and reset counter.
+              return { 
+                  action: { type: 'UPGRADE', coord: {q:bot.q, r:bot.r}, intent: 'RECOVER', stateVersion }, 
+                  debug: 'PANIC: RECOVER', 
+                  memory: { ...nextMemory, stuckCounter: 0 } 
+              };
+          }
+
+          // CRITICAL FIX: Affordability Check for specific target (Secondary detailed check)
+          // Calculate exact cost to avoid engine error
           const targetHex = grid[getHexKey(target.q, target.r)];
-          const moveCost = (targetHex && targetHex.maxLevel >= 2) ? targetHex.maxLevel : 1;
+          const exactMoveCost = (targetHex && targetHex.maxLevel >= 2) ? targetHex.maxLevel : 1;
           const maxPossibleMoves = bot.moves + Math.floor(bot.coins / GAME_CONFIG.EXCHANGE_RATE_COINS_PER_MOVE);
 
-          if (maxPossibleMoves < moveCost) {
-             // We are trapped and broke. Just wait and reset counter to stop spamming.
+          if (maxPossibleMoves < exactMoveCost) {
+             // We are trapped and broke relative to this specific move.
              return { 
                  action: { type: 'WAIT', stateVersion }, 
                  debug: 'PANIC: BROKE', 

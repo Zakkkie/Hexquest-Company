@@ -1,3 +1,4 @@
+
 import { System } from './System';
 import { GameState, GameEvent, EntityState, EntityType, SessionState } from '../../types';
 import { WorldIndex } from '../WorldIndex';
@@ -16,19 +17,38 @@ export class AiSystem implements System {
   update(state: SessionState, index: WorldIndex, events: GameEvent[]): void {
     const now = Date.now();
     
-    if (now - state.lastBotActionTime < GAME_CONFIG.BOT_ACTION_INTERVAL_MS) {
-      return;
-    }
+    // Optimization check: Do any bots actually need to run this tick?
+    const baseInterval = GAME_CONFIG.BOT_ACTION_INTERVAL_MS;
+    const shuffledBots = [...state.bots].sort(() => Math.random() - 0.5);
+    
+    const anyBotReady = shuffledBots.some(b => {
+        if (b.state !== EntityState.IDLE) return false;
+        const interval = b.playerLevel < 3 ? baseInterval * 2 : baseInterval;
+        return (now - (b.lastActionTime || 0)) >= interval;
+    });
 
-    index.syncGrid(state.grid);
+    // Only sync expensive index state if we are actually going to calculate moves
+    if (anyBotReady) {
+        index.syncState(state);
+    } else {
+        // Just sync grid structure (cheaper) for other systems if needed, 
+        // though strictly AI is the main consumer of full grid analysis.
+        index.syncGrid(state.grid);
+    }
     
     const tickObstacles = index.getOccupiedHexesList();
     const tickReservedKeys = new Set<string>();
 
-    const shuffledBots = [...state.bots].sort(() => Math.random() - 0.5);
-
     for (const bot of shuffledBots) {
       if (bot.state !== EntityState.IDLE) continue;
+      
+      // --- SPEED THROTTLE ---
+      const interval = bot.playerLevel < 3 ? baseInterval * 2 : baseInterval;
+      
+      const lastAct = bot.lastActionTime || 0;
+      if (now - lastAct < interval) {
+          continue; 
+      }
       
       const aiResult = calculateBotMove(
         bot, 
@@ -42,7 +62,7 @@ export class AiSystem implements System {
         tickReservedKeys 
       );
 
-      // PERSIST MEMORY (Crucial for Master Goal logic)
+      // PERSIST MEMORY
       if (aiResult.memory) {
           bot.memory = aiResult.memory;
       }
@@ -59,7 +79,6 @@ export class AiSystem implements System {
       if (state.botActivityLog.length > 50) state.botActivityLog.pop();
 
       if (aiResult.action && aiResult.action.type !== 'WAIT') {
-         // The `state` object passed here is the mutable copy from the GameEngine tick.
          const res = this.actionProcessor.applyAction(state, index, bot.id, aiResult.action);
          if (!res.ok) {
              events.push({
@@ -67,7 +86,6 @@ export class AiSystem implements System {
                  message: `Bot ${bot.id} action failed: ${res.reason}`,
                  timestamp: now
              });
-             // If action failed, maybe reset memory/goal to force rethink next tick?
              if (bot.memory) {
                  bot.memory.lastActionFailed = true;
                  bot.memory.stuckCounter = (bot.memory.stuckCounter || 0) + 1;
@@ -77,10 +95,11 @@ export class AiSystem implements System {
                  const target = aiResult.action.path[aiResult.action.path.length - 1];
                  tickReservedKeys.add(getHexKey(target.q, target.r));
              }
-             // Reset stuck counter on success
              if (bot.memory) bot.memory.stuckCounter = 0;
          }
       }
+      
+      bot.lastActionTime = now;
     }
 
     state.lastBotActionTime = now;

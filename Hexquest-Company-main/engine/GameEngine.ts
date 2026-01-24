@@ -1,5 +1,5 @@
 
-import { GameState, GameAction, GameEvent, ValidationResult, SessionState, EntityState, TutorialStep } from '../types';
+import { GameState, GameAction, GameEvent, ValidationResult, SessionState, EntityState, TutorialStep, LeaderboardEntry } from '../types';
 import { WorldIndex } from './WorldIndex';
 import { System } from './systems/System';
 import { MovementSystem } from './systems/MovementSystem';
@@ -101,8 +101,19 @@ export class GameEngine {
       // Генерируем события вручную
       const winEvent = GameEventFactory.create('VICTORY', msg, nextState.player.id);
       
+      const statsEntry: LeaderboardEntry = {
+          nickname: 'Commander', 
+          avatarColor: '#000', 
+          avatarIcon: 'user',
+          maxCoins: nextState.player.totalCoinsEarned,
+          maxLevel: nextState.player.playerLevel,
+          difficulty: nextState.difficulty,
+          timestamp: Date.now()
+      };
+      const lbEvent = GameEventFactory.create('LEADERBOARD_UPDATE', 'Tutorial stats synchronized', nextState.player.id, { entry: statsEntry });
+
       if (!nextState.telemetry) nextState.telemetry = [];
-      nextState.telemetry.push(winEvent);
+      nextState.telemetry.push(winEvent, lbEvent);
 
       nextState.stateVersion++;
       this._state = nextState;
@@ -132,7 +143,11 @@ export class GameEngine {
     if (!this._state || !this._index) return { state: {} as any, events: [] };
 
     const nextState = this.cloneState(this._state);
-    this._index.syncState(nextState);
+    
+    // PERFORMANCE OPTIMIZATION:
+    // We removed unconditional this._index.syncState(nextState) here.
+    // Synchronization is now handled lazily inside individual systems (e.g., AiSystem)
+    // or incrementally maintained via MovementSystem updates.
 
     const tickEvents: GameEvent[] = [];
 

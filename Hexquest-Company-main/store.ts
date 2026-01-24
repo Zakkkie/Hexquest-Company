@@ -23,6 +23,10 @@ const loadLeaderboard = (): LeaderboardEntry[] => {
   }
 };
 
+const saveLeaderboard = (entries: LeaderboardEntry[]) => {
+    localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(entries));
+};
+
 interface AuthResponse { success: boolean; message?: string; }
 
 interface GameStore extends GameState {
@@ -53,6 +57,8 @@ interface GameStore extends GameState {
 }
 
 let engine: GameEngine | null = null;
+let lastTickTime = 0;
+const MIN_TICK_INTERVAL_MS = 66; // Limit to ~15 FPS maximum
 
 const createInitialSessionData = (winCondition: WinCondition): SessionState => {
   const startHex = { id: getHexKey(0,0), q:0, r:0, currentLevel: 0, maxLevel: 0, progress: 0, revealed: true };
@@ -374,4 +380,157 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ session: engine.state });
   },
 
-  checkTutorialCamera: (
+  checkTutorialCamera: (deltaX: number) => {
+      const { session, advanceTutorial } = get();
+      if (session?.tutorialStep === 'CAMERA_ROTATE') {
+          if (Math.abs(deltaX) > 50) { 
+              advanceTutorial('MOVE_1');
+          }
+      }
+  },
+
+  tick: () => {
+      const now = Date.now();
+      // Enforce throttling: max 15 ticks per second (66ms)
+      if (now - lastTickTime < MIN_TICK_INTERVAL_MS) return;
+      lastTickTime = now;
+
+      if (!engine || !engine.state || engine.state.gameStatus === 'BRIEFING') return;
+      
+      const result = engine.processTick();
+      if (!result || !result.state) return;
+
+      if (result.events.length > 0) {
+          result.events.forEach(event => {
+            const isPlayer = event.entityId === result.state.player.id;
+            
+            if (isPlayer || !event.entityId) {
+               switch (event.type) {
+                 case 'LEVEL_UP': audioService.play('LEVEL_UP'); break;
+                 case 'SECTOR_ACQUIRED': audioService.play('SUCCESS'); break;
+                 case 'RECOVERY_USED': audioService.play('COIN'); break;
+                 case 'HEX_COLLAPSE': audioService.play('COLLAPSE'); break;
+                 case 'VICTORY': audioService.play('SUCCESS'); break;
+                 case 'DEFEAT': audioService.play('ERROR'); break;
+               }
+
+               if (event.type === 'SECTOR_ACQUIRED' && isPlayer) {
+                   const step = result.state.tutorialStep;
+                   if (step === 'ACQUIRE_1') get().advanceTutorial('MOVE_2');
+                   if (step === 'ACQUIRE_2') get().advanceTutorial('MOVE_3');
+                   if (step === 'ACQUIRE_3') get().advanceTutorial('UPGRADE_CENTER_2');
+                   
+                   if (step === 'BUILD_FOUNDATION') {
+                        const neighbors = getNeighbors(0,0);
+                        const l2Count = neighbors.filter(n => result.state.grid[getHexKey(n.q, n.r)]?.maxLevel >= 2).length;
+                        if (l2Count >= 3) get().advanceTutorial('UPGRADE_CENTER_3');
+                   }
+               }
+               if (event.type === 'LEVEL_UP' && isPlayer) {
+                   const step = result.state.tutorialStep;
+                   if (step === 'UPGRADE_CENTER_2') get().advanceTutorial('BUILD_FOUNDATION');
+                   if (step === 'BUILD_FOUNDATION') {
+                        const neighbors = getNeighbors(0,0);
+                        const l2Count = neighbors.filter(n => result.state.grid[getHexKey(n.q, n.r)]?.maxLevel >= 2).length;
+                        if (l2Count >= 3) get().advanceTutorial('UPGRADE_CENTER_3');
+                   }
+                   if (step === 'UPGRADE_CENTER_3') {
+                        get().advanceTutorial('VICTORY_ANIMATION');
+                        engine?.triggerVictory(); 
+                   }
+               }
+            }
+
+            if (event.type === 'LEADERBOARD_UPDATE' && event.data?.entry) {
+                const entry = event.data.entry as LeaderboardEntry;
+                const user = get().user;
+                if (user) {
+                    entry.nickname = user.nickname;
+                    entry.avatarColor = user.avatarColor;
+                    entry.avatarIcon = user.avatarIcon;
+                }
+                
+                const currentLB = [...get().leaderboard];
+                const existingIdx = currentLB.findIndex(e => e.nickname === entry.nickname && e.difficulty === entry.difficulty);
+                
+                if (existingIdx !== -1) {
+                    const existing = currentLB[existingIdx];
+                    if (entry.maxLevel > existing.maxLevel || (entry.maxLevel === existing.maxLevel && entry.maxCoins > existing.maxCoins)) {
+                        currentLB[existingIdx] = entry;
+                    }
+                } else {
+                    currentLB.push(entry);
+                }
+                
+                currentLB.sort((a, b) => b.maxLevel !== a.maxLevel ? b.maxLevel - a.maxLevel : b.maxCoins - a.maxCoins);
+                const slicedLB = currentLB.slice(0, 100);
+                saveLeaderboard(slicedLB);
+                set({ leaderboard: slicedLB });
+            }
+
+            if (event.entityId || event.type === 'HEX_COLLAPSE') {
+                 const entity = result.state.player.id === event.entityId 
+                    ? result.state.player 
+                    : result.state.bots.find(b => b.id === event.entityId);
+                 const targetQ = event.data?.q !== undefined ? Number(event.data.q) : (entity?.q || 0);
+                 const targetR = event.data?.r !== undefined ? Number(event.data.r) : (entity?.r || 0);
+
+                 if (entity || event.type === 'HEX_COLLAPSE') {
+                    let text = '';
+                    let color = '#ffffff';
+                    let icon: FloatingText['icon'] = undefined;
+
+                    switch (event.type) {
+                        case 'LEVEL_UP':
+                            text = isPlayer ? "RANK UP" : "RIVAL UP"; 
+                            color = isPlayer ? "#fbbf24" : "#f87171"; 
+                            icon = 'UP';
+                            break;
+                        case 'SECTOR_ACQUIRED':
+                            text = "LINKED"; 
+                            color = isPlayer ? "#4ade80" : "#f87171"; 
+                            icon = 'PLUS';
+                            break;
+                        case 'RECOVERY_USED':
+                            if (isPlayer) {
+                                text = "+MOVES";
+                                color = "#34d399";
+                                icon = 'COIN';
+                            }
+                            break;
+                        case 'HEX_COLLAPSE':
+                            text = "COLLAPSE";
+                            color = "#ef4444";
+                            icon = 'DOWN';
+                            break;
+                    }
+
+                    if (text) {
+                        result.state.effects.push({
+                            id: `fx-${Date.now()}-${Math.random()}`,
+                            q: targetQ,
+                            r: targetR,
+                            text,
+                            color,
+                            icon,
+                            startTime: Date.now(),
+                            lifetime: 1200 
+                        });
+                    }
+                 }
+            }
+          });
+      }
+
+      let newToast = get().toast;
+      const error = result.events.find(e => e.type === 'ACTION_DENIED' || e.type === 'ERROR');
+      if (error && error.entityId === engine?.state?.player.id) {
+          newToast = { message: error.message || 'Error', type: 'error', timestamp: Date.now() };
+      }
+
+      set({ 
+          session: result.state,
+          toast: newToast,
+      });
+  }
+}));

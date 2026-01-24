@@ -1,6 +1,6 @@
 
 import React, { useRef, useLayoutEffect, useState, useEffect } from 'react';
-import { Group, Circle, Ellipse, Rect, Text } from 'react-konva';
+import { Group, Circle, Ellipse, Rect, Text, Shape } from 'react-konva';
 import Konva from 'konva';
 import { useGameStore } from '../store.ts';
 import { hexToPixel } from '../services/hexUtils.ts';
@@ -82,11 +82,17 @@ const CoinPopup: React.FC<{ amount: number; y: number }> = ({ amount, y }) => {
 
   return (
     <Group ref={groupRef} listening={false}>
-      <Circle radius={10} fill="#fbbf24" stroke="#d97706" strokeWidth={2} />
-      <Text text="$" fontSize={12} fontStyle="bold" fill="#78350f" x={-4} y={-5} />
+      {/* Outer Coin */}
+      <Circle radius={9} fill="#fbbf24" stroke="#b45309" strokeWidth={1.5} shadowColor="black" shadowBlur={2} shadowOpacity={0.3} />
+      {/* Inner Rim */}
+      <Circle radius={6} stroke="#fcd34d" strokeWidth={1} /> 
+      {/* Symbol */}
+      <Text text="$" fontSize={10} fontStyle="bold" fill="#78350f" x={-3.5} y={-5} />
+      
+      {/* Amount Label */}
       <Text
         text={`+${amount}`}
-        x={14} y={-6}
+        x={12} y={-6}
         fontSize={14} fontFamily="monospace" fontStyle="bold" fill="#fbbf24"
         shadowColor="black" shadowBlur={2} shadowOpacity={0.8} shadowOffset={{x: 1, y: 1}}
       />
@@ -104,7 +110,7 @@ const PointPopup: React.FC<{ y: number }> = ({ y }) => {
     node.opacity(0);
     node.scale({ x: 0.5, y: 0.5 });
     node.y(y);
-    node.x(20); // Offset to right to avoid overlap with coin
+    node.x(35); // Offset further to right to avoid overlap with coin
 
     const tween = new Konva.Tween({
       node: node,
@@ -124,11 +130,31 @@ const PointPopup: React.FC<{ y: number }> = ({ y }) => {
 
   return (
     <Group ref={groupRef} listening={false}>
-      <Circle radius={10} fill="#4ade80" stroke="#15803d" strokeWidth={2} />
+      {/* Greenish Parallelogram */}
+      <Shape
+        sceneFunc={(ctx, shape) => {
+          ctx.beginPath();
+          ctx.moveTo(3, -6);  // Top Left
+          ctx.lineTo(13, -6); // Top Right
+          ctx.lineTo(10, 6);  // Bottom Right
+          ctx.lineTo(0, 6);   // Bottom Left
+          ctx.closePath();
+          ctx.fillStrokeShape(shape);
+        }}
+        fill="#4ade80" // emerald-400
+        stroke="#15803d" // emerald-700
+        strokeWidth={1.5}
+        shadowColor="black"
+        shadowBlur={2}
+        shadowOpacity={0.3}
+      />
+      
+      {/* Label */}
       <Text
         text="+1"
-        x={-8} y={-5}
-        fontSize={12} fontFamily="monospace" fontStyle="bold" fill="#064e3b"
+        x={16} y={-6}
+        fontSize={14} fontFamily="monospace" fontStyle="bold" fill="#4ade80"
+        shadowColor="black" shadowBlur={2} shadowOpacity={0.8} shadowOffset={{x: 1, y: 1}}
       />
     </Group>
   );
