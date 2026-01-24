@@ -1,13 +1,11 @@
 
-
-
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Group, Path, Shape, Circle, Text, RegularPolygon } from 'react-konva';
 import Konva from 'konva';
-import { Hex } from '../types.ts';
-import { HEX_SIZE, GAME_CONFIG } from '../rules/config.ts';
-import { getSecondsToGrow, hexToPixel } from '../services/hexUtils.ts';
-import { useGameStore } from '../store.ts';
+import { Hex } from '../types'; // Fixed import
+import { HEX_SIZE, GAME_CONFIG } from '../rules/config'; // Fixed import
+import { getSecondsToGrow, hexToPixel } from '../services/hexUtils'; // Fixed import
+import { useGameStore } from '../store'; // Fixed import
 
 interface HexagonVisualProps {
   hex: Hex;
@@ -15,10 +13,12 @@ interface HexagonVisualProps {
   playerRank: number;
   isOccupied: boolean;
   isSelected: boolean;
-  isPendingConfirm: boolean; // New Prop
-  pendingCost: number | null; // New Prop
+  isPendingConfirm: boolean; 
+  pendingCost: number | null; 
   onHexClick: (q: number, r: number) => void;
   onHover: (id: string | null) => void;
+  isTutorialTarget?: boolean;
+  tutorialHighlightColor?: 'blue' | 'amber' | 'cyan';
 }
 
 const LEVEL_COLORS: Record<number, { fill: string; stroke: string; side: string }> = {
@@ -79,12 +79,13 @@ const getCraters = (q: number, r: number, damage: number, offsetY: number) => {
     return craters;
 };
 
-const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation, playerRank, isOccupied, isSelected, isPendingConfirm, pendingCost, onHexClick, onHover }) => {
+const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation, playerRank, isOccupied, isSelected, isPendingConfirm, pendingCost, onHexClick, onHover, isTutorialTarget, tutorialHighlightColor = 'blue' }) => {
   const groupRef = useRef<Konva.Group>(null);
   const progressShapeRef = useRef<Konva.Shape>(null);
   const selectionRef = useRef<Konva.Path>(null);
   const voidGroupRef = useRef<Konva.Group>(null);
   const confirmRef = useRef<Konva.Group>(null);
+  const tutorialHighlightRef = useRef<Konva.Path>(null);
   
   // Track previous state to trigger animations
   const prevStructureRef = useRef(hex.structureType);
@@ -104,8 +105,8 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
 
   const isGrowing = hex.progress > 0 && !isVoid;
   const targetLevel = hex.currentLevel + 1;
-  const neededSeconds = getSecondsToGrow(targetLevel) || 1;
-  const progressPercent = Math.min(1, hex.progress / neededSeconds);
+  const neededTicks = getSecondsToGrow(targetLevel) || 30; // Use ticks (30 = 3s)
+  const progressPercent = Math.min(1, hex.progress / neededTicks);
   const isLocked = hex.maxLevel > playerRank;
   
   // Durability Logic
@@ -129,7 +130,7 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
     const bottoms = [];
     const faces = [];
     const selectionTops = [];
-    const selRadius = Math.max(0, HEX_SIZE - 3);
+    const selRadius = Math.max(0, HEX_SIZE - 6); 
 
     for (let i = 0; i < 6; i++) {
         tops.push(getPoint(i, offsetY, HEX_SIZE));
@@ -223,12 +224,26 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
     }
   }, [isPendingConfirm]);
 
+  // TUTORIAL TARGET ANIMATION
+  useEffect(() => {
+      if (isTutorialTarget && tutorialHighlightRef.current) {
+          const node = tutorialHighlightRef.current;
+          const anim = new Konva.Animation((frame) => {
+              const scale = 1 + (Math.sin(frame!.time / 150) * 0.15);
+              node.scale({ x: scale, y: scale });
+              node.opacity(0.5 + (Math.sin(frame!.time / 150) * 0.3));
+          }, node.getLayer());
+          anim.start();
+          return () => { anim.stop(); };
+      }
+  }, [isTutorialTarget]);
+
   // PROGRESS BAR
   useEffect(() => {
       const shape = progressShapeRef.current;
       if (shape && isGrowing) {
           const tween = new Konva.Tween({
-              node: shape, duration: 0.95, visualProgress: progressPercent, easing: Konva.Easings.Linear
+              node: shape, duration: 0.2, visualProgress: progressPercent, easing: Konva.Easings.Linear
           });
           tween.play();
           return () => tween.destroy();
@@ -276,6 +291,13 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
       }
       prevStructureRef.current = hex.structureType;
   }, [hex.structureType, y]);
+
+  // Map tutorial prop to colors
+  const tutorialColorHex = useMemo(() => {
+      if (tutorialHighlightColor === 'amber') return '#fbbf24';
+      if (tutorialHighlightColor === 'cyan') return '#22d3ee';
+      return '#60a5fa'; // blue
+  }, [tutorialHighlightColor]);
 
   // --- RENDER VOID (ASH/RUBBLE TEXTURE) ---
   if (isVoid) {
@@ -386,6 +408,22 @@ const HexagonVisual: React.FC<HexagonVisualProps> = React.memo(({ hex, rotation,
             shadowColor="#22d3ee"
             shadowBlur={5}
             shadowOpacity={1}
+            listening={false}
+          />
+      )}
+
+      {/* 3.5 TUTORIAL HIGHLIGHT */}
+      {isTutorialTarget && (
+          <Path
+            ref={tutorialHighlightRef}
+            data={selectionPathData}
+            stroke={tutorialColorHex}
+            strokeWidth={3}
+            fillEnabled={false}
+            perfectDrawEnabled={false}
+            shadowColor={tutorialColorHex}
+            shadowBlur={10}
+            shadowOpacity={0.8}
             listening={false}
           />
       )}
@@ -501,12 +539,12 @@ interface SmartHexagonProps {
   pendingCost: number | null;
   onHexClick: (q: number, r: number) => void;
   onHover: (id: string | null) => void;
+  isTutorialTarget?: boolean;
+  tutorialHighlightColor?: 'blue' | 'amber' | 'cyan';
 }
 
 const SmartHexagon: React.FC<SmartHexagonProps> = React.memo((props) => {
   const hex = useGameStore(state => state.session?.grid[props.id]);
-  // We don't subscribe to pendingConfirmation directly here to avoid re-rendering ALL hexes.
-  // Instead, the parent GameView passes specific props to the target hex.
   if (!hex) return null;
   return <HexagonVisual hex={hex} {...props} />;
 });

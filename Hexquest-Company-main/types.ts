@@ -151,6 +151,7 @@ export interface PendingConfirmation {
 }
 
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
+export type Language = 'EN' | 'RU';
 
 // UPDATED WIN CONDITION FOR CAMPAIGN
 export interface WinCondition {
@@ -236,6 +237,7 @@ export interface GameState {
   leaderboard: LeaderboardEntry[];
   hasActiveSession: boolean;
   isMuted: boolean;
+  language: Language;
 }
 
 export type MoveAction = { type: 'MOVE'; path: { q: number; r: number }[]; stateVersion?: number };

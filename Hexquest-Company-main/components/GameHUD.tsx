@@ -1,13 +1,13 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useGameStore } from '../store.ts';
-import { getHexKey, getNeighbors, getSecondsToGrow, findPath } from '../services/hexUtils.ts';
-import { checkGrowthCondition } from '../rules/growth.ts';
-import { EXCHANGE_RATE_COINS_PER_MOVE, DIFFICULTY_SETTINGS } from '../rules/config.ts';
-import { EntityState, TutorialStep } from '../types.ts';
-import HexButton from './HexButton.tsx';
-import { CAMPAIGN_LEVELS } from '../rules/campaign.ts';
-import { TEXT } from '../services/i18n.ts';
+import { useGameStore } from '../store';
+import { getHexKey, getNeighbors, getSecondsToGrow, findPath } from '../services/hexUtils';
+import { checkGrowthCondition } from '../rules/growth';
+import { EXCHANGE_RATE_COINS_PER_MOVE, DIFFICULTY_SETTINGS } from '../rules/config';
+import { EntityState, TutorialStep } from '../types';
+import HexButton from './HexButton';
+import { CAMPAIGN_LEVELS } from '../rules/campaign';
+import { TEXT } from '../services/i18n';
 import { 
   AlertCircle, Pause, Trophy, Coins, Footprints, AlertTriangle, LogOut,
   Crown, TrendingUp, ChevronUp, ChevronDown, Shield, MapPin,

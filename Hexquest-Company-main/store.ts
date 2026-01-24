@@ -1,12 +1,12 @@
 
 import { create } from 'zustand';
-import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep } from './types.ts';
-import { GAME_CONFIG } from './rules/config.ts';
-import { getHexKey, getNeighbors, findPath } from './services/hexUtils.ts';
-import { GameEngine } from './engine/GameEngine.ts';
-import { checkGrowthCondition } from './rules/growth.ts';
-import { audioService } from './services/audioService.ts';
-import { CAMPAIGN_LEVELS } from './rules/campaign.ts';
+import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep } from './types'; // Removed extension
+import { GAME_CONFIG } from './rules/config'; // Removed extension
+import { getHexKey, getNeighbors, findPath } from './services/hexUtils'; // Removed extension
+import { GameEngine } from './engine/GameEngine'; // Removed extension
+import { checkGrowthCondition } from './rules/growth'; // Removed extension
+import { audioService } from './services/audioService'; // Removed extension
+import { CAMPAIGN_LEVELS } from './rules/campaign'; // Removed extension
 
 const MOCK_USER_DB: Record<string, { password: string; avatarColor: string; avatarIcon: string }> = {};
 const BOT_PALETTE = ['#ef4444', '#f97316', '#a855f7', '#ec4899']; 
