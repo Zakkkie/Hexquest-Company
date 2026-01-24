@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep } from './types.ts';
 import { GAME_CONFIG } from './rules/config.ts';
@@ -436,7 +437,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
                if (event.type === 'LEVEL_UP') {
                    const step = result.state.tutorialStep;
                    if (step === 'UPGRADE_CENTER_2') get().advanceTutorial('BUILD_FOUNDATION');
-                   if (step === 'UPGRADE_CENTER_3') get().advanceTutorial('VICTORY_ANIMATION');
+                   if (step === 'UPGRADE_CENTER_3') {
+                        get().advanceTutorial('VICTORY_ANIMATION');
+                        engine?.triggerVictory(); // FORCE VICTORY IN ENGINE
+                   }
                }
                if (event.type === 'VICTORY') {
                    if (result.state.tutorialStep === 'VICTORY_ANIMATION') {
