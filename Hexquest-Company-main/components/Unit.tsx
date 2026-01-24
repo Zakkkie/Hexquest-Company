@@ -2,10 +2,10 @@
 import React, { useRef, useLayoutEffect, useState, useEffect } from 'react';
 import { Group, Circle, Ellipse, Rect, Text, Shape } from 'react-konva';
 import Konva from 'konva';
-import { useGameStore } from '../store'; // Fixed import extension
-import { hexToPixel } from '../services/hexUtils'; // Fixed import extension
-import { EntityType } from '../types'; // Fixed import extension
-import { GAME_CONFIG } from '../rules/config'; // Fixed import extension
+import { useGameStore } from '../store.ts';
+import { hexToPixel } from '../services/hexUtils.ts';
+import { EntityType } from '../types.ts';
+import { GAME_CONFIG } from '../rules/config.ts';
 
 interface UnitProps {
   q: number;
