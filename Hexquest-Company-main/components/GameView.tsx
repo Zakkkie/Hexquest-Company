@@ -141,6 +141,8 @@ const GameView: React.FC = () => {
   const bots = useGameStore(state => state.session?.bots);
   const effects = useGameStore(state => state.session?.effects); // Visual Effects
   const isPlayerGrowing = useGameStore(state => state.session?.isPlayerGrowing);
+  const tutorialStep = useGameStore(state => state.session?.tutorialStep);
+  const winCondition = useGameStore(state => state.session?.winCondition);
   
   // Pending Confirmation Logic
   const pendingConfirmation = useGameStore(state => state.pendingConfirmation);
@@ -150,6 +152,7 @@ const GameView: React.FC = () => {
   const movePlayer = useGameStore(state => state.movePlayer);
   const hideToast = useGameStore(state => state.hideToast);
   const toast = useGameStore(state => state.toast);
+  const checkTutorialCamera = useGameStore(state => state.checkTutorialCamera);
   
   if (!grid || !player || !bots) return null;
   
@@ -217,7 +220,10 @@ const GameView: React.FC = () => {
           if (progress < 1) requestAnimationFrame(animate);
       };
       requestAnimationFrame(animate);
-  }, [cameraRotation]);
+      
+      // Advance tutorial if needed
+      checkTutorialCamera(100); 
+  }, [cameraRotation, checkTutorialCamera]);
 
   const centerOnPlayer = useCallback(() => {
     const { x: px, y: py } = hexToPixel(player.q, player.r, cameraRotation);
@@ -282,6 +288,7 @@ const GameView: React.FC = () => {
             targetRotationRef.current = newRot; 
             return newRot;
         });
+        checkTutorialCamera(deltaX);
     }
   };
 
@@ -302,7 +309,7 @@ const GameView: React.FC = () => {
   };
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-     if (!isRotating.current) {
+     if (!isRotating.current && (e.evt as any).touches?.length !== 2) {
         setViewState(prev => ({ ...prev, x: e.target.x(), y: e.target.y() }));
      }
   };
@@ -430,7 +437,7 @@ const GameView: React.FC = () => {
         });
      }
      return items.sort((a, b) => a.depth - b.depth);
-  }, [grid, player, safeBots, cameraRotation, isMoving, isPlayerGrowing, viewState, dimensions, neighbors, movementTracker]);
+  }, [grid, player, safeBots, cameraRotation, isMoving, isPlayerGrowing, viewState, dimensions, neighbors, movementTracker, tutorialStep, winCondition]);
 
   // --- RENDER ---
   return (
@@ -468,6 +475,45 @@ const GameView: React.FC = () => {
                     const isOccupied = (item.q === player.q && item.r === player.r) || safeBots.some(b => b.q === item.q && b.r === item.r);
                     const isPending = item.id === pendingTargetKey;
                     
+                    let isTutorialTarget = false;
+                    let tutorialHighlightColor: 'blue' | 'amber' | 'cyan' | 'emerald' = 'blue';
+
+                    if (tutorialStep) {
+                        const q = item.q;
+                        const r = item.r;
+                        if (tutorialStep === 'MOVE_1' && q === 1 && r === -1) { isTutorialTarget = true; tutorialHighlightColor = 'blue'; }
+                        else if (tutorialStep === 'ACQUIRE_1' && q === 1 && r === -1) { isTutorialTarget = true; tutorialHighlightColor = 'amber'; }
+                        else if (tutorialStep === 'MOVE_2' && q === 0 && r === -1) { isTutorialTarget = true; tutorialHighlightColor = 'blue'; }
+                        else if (tutorialStep === 'ACQUIRE_2' && q === 0 && r === -1) { isTutorialTarget = true; tutorialHighlightColor = 'amber'; }
+                        else if (tutorialStep === 'MOVE_3' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'blue'; }
+                        else if (tutorialStep === 'ACQUIRE_3' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'amber'; }
+                        else if (tutorialStep === 'UPGRADE_CENTER_2' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'amber'; }
+                        else if (tutorialStep === 'UPGRADE_CENTER_3' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'cyan'; }
+                        
+                        if (tutorialStep === 'BUILD_FOUNDATION') {
+                            const queueSize = winCondition?.queueSize || 1;
+                            const hex = grid[item.id];
+                            const isNeighbor = getNeighbors(player.q, player.r).some(n => n.q === q && n.r === r);
+                            const isCurrent = player.q === q && player.r === r;
+
+                            if (player.recentUpgrades.length >= queueSize) {
+                                if (hex && hex.maxLevel === 1 && (isNeighbor || isCurrent)) {
+                                    isTutorialTarget = true; 
+                                    tutorialHighlightColor = 'amber';
+                                }
+                                if (hex && hex.maxLevel === 2 && (isNeighbor || isCurrent)) {
+                                    isTutorialTarget = true;
+                                    tutorialHighlightColor = 'cyan';
+                                }
+                            } else {
+                                if (hex && hex.maxLevel === 0 && isNeighbor) {
+                                    isTutorialTarget = true; 
+                                    tutorialHighlightColor = 'emerald';
+                                }
+                            }
+                        }
+                    }
+                    
                     return (
                         <Hexagon 
                             key={item.id} 
@@ -479,7 +525,9 @@ const GameView: React.FC = () => {
                             isPendingConfirm={isPending}
                             pendingCost={isPending && pendingConfirmation ? pendingConfirmation.data.costCoins : null}
                             onHexClick={handleHexClick} 
-                            onHover={setHoveredHexId} 
+                            onHover={setHoveredHexId}
+                            isTutorialTarget={isTutorialTarget}
+                            tutorialHighlightColor={tutorialHighlightColor as any}
                         />
                     );
                 } else if (item.type === 'UNIT') {
@@ -496,7 +544,8 @@ const GameView: React.FC = () => {
                             color={unit.avatarColor} 
                             rotation={cameraRotation} 
                             hexLevel={hLevel} 
-                            totalCoinsEarned={unit.totalCoinsEarned} 
+                            totalCoinsEarned={unit.totalCoinsEarned}
+                            upgradePointCount={unit.recentUpgrades.length} 
                             onMoveComplete={spawnDust}
                         />
                     );

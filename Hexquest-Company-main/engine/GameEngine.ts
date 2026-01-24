@@ -144,10 +144,10 @@ export class GameEngine {
 
     const nextState = this.cloneState(this._state);
     
-    // PERFORMANCE OPTIMIZATION:
-    // We removed unconditional this._index.syncState(nextState) here.
-    // Synchronization is now handled lazily inside individual systems (e.g., AiSystem)
-    // or incrementally maintained via MovementSystem updates.
+    // OPTIMIZATION: Removed unconditional synchronization.
+    // this._index.syncState(nextState);
+    // Systems are now responsible for syncing if they need deep state access.
+    // MovementSystem updates the index incrementally.
 
     const tickEvents: GameEvent[] = [];
 

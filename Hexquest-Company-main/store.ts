@@ -58,7 +58,7 @@ interface GameStore extends GameState {
 
 let engine: GameEngine | null = null;
 let lastTickTime = 0;
-const MIN_TICK_INTERVAL_MS = 66; // Limit to ~15 FPS maximum
+const MIN_TICK_INTERVAL_MS = 66; // Limit to ~15 FPS max for game logic
 
 const createInitialSessionData = (winCondition: WinCondition): SessionState => {
   const startHex = { id: getHexKey(0,0), q:0, r:0, currentLevel: 0, maxLevel: 0, progress: 0, revealed: true };
@@ -390,10 +390,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   tick: () => {
+      // --- THROTTLING ---
       const now = Date.now();
-      // Enforce throttling: max 15 ticks per second (66ms)
       if (now - lastTickTime < MIN_TICK_INTERVAL_MS) return;
       lastTickTime = now;
+      // ------------------
 
       if (!engine || !engine.state || engine.state.gameStatus === 'BRIEFING') return;
       

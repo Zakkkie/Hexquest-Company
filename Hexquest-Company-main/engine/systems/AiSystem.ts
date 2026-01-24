@@ -17,7 +17,8 @@ export class AiSystem implements System {
   update(state: SessionState, index: WorldIndex, events: GameEvent[]): void {
     const now = Date.now();
     
-    // Optimization check: Do any bots actually need to run this tick?
+    // --- OPTIMIZATION START ---
+    // Check if any bot is actually eligible to act this tick before doing expensive work.
     const baseInterval = GAME_CONFIG.BOT_ACTION_INTERVAL_MS;
     const shuffledBots = [...state.bots].sort(() => Math.random() - 0.5);
     
@@ -27,14 +28,14 @@ export class AiSystem implements System {
         return (now - (b.lastActionTime || 0)) >= interval;
     });
 
-    // Only sync expensive index state if we are actually going to calculate moves
     if (anyBotReady) {
+        // Only sync the full state (rebuilding entity maps) if a bot is going to run AI logic.
         index.syncState(state);
     } else {
-        // Just sync grid structure (cheaper) for other systems if needed, 
-        // though strictly AI is the main consumer of full grid analysis.
+        // Just sync the grid (cheaper reference update) so other systems have fresh terrain data
         index.syncGrid(state.grid);
     }
+    // --- OPTIMIZATION END ---
     
     const tickObstacles = index.getOccupiedHexesList();
     const tickReservedKeys = new Set<string>();
