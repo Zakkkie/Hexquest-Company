@@ -219,7 +219,7 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
     }, node.getLayer());
 
     anim.start();
-    // FIX: Must return a function that returns VOID, not the Animation object
+    // FIX: Explicitly return void to satisfy EffectCallback type
     return () => {
         anim.stop();
     };
