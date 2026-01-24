@@ -1,22 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type HexCoord = { q: number; r: number; upgrade?: boolean; intent?: 'UPGRADE' | 'RECOVER' };
 
 // Read-only view of a Hex for the Bot (Architecture Requirement)
@@ -201,7 +183,21 @@ export interface FloatingText {
   icon?: 'UP' | 'PLUS' | 'WARN' | 'COIN' | 'DOWN';
 }
 
-export type TutorialStep = 'NONE' | 'WELCOME' | 'MOVE_CAMERA' | 'MOVE_UNIT' | 'EXPLAIN_ACQUIRE' | 'EXPLAIN_QUEUE' | 'FREE_PLAY';
+export type TutorialStep = 
+  | 'NONE' 
+  | 'WELCOME' 
+  | 'CAMERA_ROTATE'
+  | 'MOVE_1' 
+  | 'ACQUIRE_1' 
+  | 'MOVE_2' 
+  | 'ACQUIRE_2'
+  | 'MOVE_3' 
+  | 'ACQUIRE_3'
+  | 'UPGRADE_CENTER_2' 
+  | 'BUILD_FOUNDATION' 
+  | 'UPGRADE_CENTER_3'
+  | 'VICTORY_ANIMATION' 
+  | 'FREE_PLAY';
 
 // Authoritative state for a single game session, managed by GameEngine
 export interface SessionState {
@@ -214,7 +210,7 @@ export interface SessionState {
   player: Entity;
   bots: Entity[]; 
   currentTurn: number;
-  gameStatus: 'PLAYING' | 'VICTORY' | 'DEFEAT';
+  gameStatus: 'BRIEFING' | 'PLAYING' | 'VICTORY' | 'DEFEAT';
   messageLog: LogEntry[]; // UPDATED: Structured log
   botActivityLog: BotLogEntry[];
   lastBotActionTime: number; 

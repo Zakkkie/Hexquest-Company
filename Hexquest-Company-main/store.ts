@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 import { create } from 'zustand';
 import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardEntry, EntityState, MoveAction, RechargeAction, SessionState, LogEntry, FloatingText, TutorialStep } from './types.ts';
 import { GAME_CONFIG } from './rules/config.ts';
@@ -43,6 +35,7 @@ interface GameStore extends GameState {
   logout: () => void;
   startNewGame: (win: WinCondition) => void;
   startCampaignLevel: (levelId: number) => void;
+  startMission: () => void;
   abandonSession: () => void;
   togglePlayerGrowth: (intent?: 'RECOVER' | 'UPGRADE') => void;
   rechargeMove: () => void;
@@ -50,11 +43,13 @@ interface GameStore extends GameState {
   confirmPendingAction: () => void;
   cancelPendingAction: () => void;
   advanceTutorial: (step: TutorialStep) => void;
+  checkTutorialCamera: (deltaX: number) => void;
   tick: () => void;
   showToast: (msg: string, type: 'error' | 'success' | 'info') => void;
   hideToast: () => void;
   toggleMute: () => void;
   playUiSound: (type: 'HOVER' | 'CLICK') => void;
+  setLanguage: (lang: 'EN' | 'RU') => void;
 }
 
 let engine: GameEngine | null = null;
@@ -100,6 +95,9 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     timestamp: Date.now()
   };
 
+  // Give 1 move for tutorial so player can make the first step
+  const initialMoves = winCondition.isTutorial ? 1 : GAME_CONFIG.INITIAL_MOVES;
+
   return {
     stateVersion: 0,
     sessionId: Math.random().toString(36).substring(2, 15),
@@ -109,7 +107,8 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     grid: initialGrid,
     player: {
       id: 'player-1', type: EntityType.PLAYER, state: EntityState.IDLE, q: 0, r: 0,
-      playerLevel: 0, coins: GAME_CONFIG.INITIAL_COINS, moves: GAME_CONFIG.INITIAL_MOVES,
+      playerLevel: 0, coins: GAME_CONFIG.INITIAL_COINS, 
+      moves: initialMoves,
       totalCoinsEarned: 0, recentUpgrades: [], movementQueue: [],
       recoveredCurrentHex: false
     },
@@ -117,7 +116,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     currentTurn: 0,
     messageLog: [initialLog],
     botActivityLog: [], 
-    gameStatus: 'PLAYING',
+    gameStatus: 'BRIEFING', // Start in Briefing mode
     lastBotActionTime: Date.now(),
     isPlayerGrowing: false,
     playerGrowthIntent: null,
@@ -137,7 +136,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hasActiveSession: false,
   isMuted: false,
   session: null,
+  language: 'EN',
   
+  setLanguage: (lang) => set({ language: lang }),
   setUIState: (uiState) => set({ uiState }),
   
   loginAsGuest: (nickname, avatarColor, avatarIcon) => {
@@ -188,6 +189,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startCampaignLevel: (levelId) => {
      const config = CAMPAIGN_LEVELS.find(l => l.levelId === levelId) || CAMPAIGN_LEVELS[0];
      get().startNewGame(config);
+  },
+
+  startMission: () => {
+      if (engine) {
+          engine.startMission();
+          set({ session: engine.state });
+          audioService.play('UI_CLICK');
+      }
   },
 
   abandonSession: () => {
@@ -242,9 +251,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const { session, pendingConfirmation, confirmPendingAction, cancelPendingAction, advanceTutorial } = get();
       if (!session) return;
 
-      // Tutorial: Cannot move during WELCOME or EXPLAIN_ACQUIRE
-      if (session.tutorialStep === 'WELCOME' || session.tutorialStep === 'EXPLAIN_ACQUIRE') {
-          return;
+      if (session.gameStatus === 'BRIEFING') return;
+
+      // Tutorial: Strict Movement Control
+      if (session.tutorialStep !== 'FREE_PLAY' && session.tutorialStep !== 'NONE') {
+          // Block movement during non-move steps
+          const moveSteps = ['MOVE_1', 'MOVE_2', 'MOVE_3', 'BUILD_FOUNDATION', 'UPGRADE_CENTER_3']; 
+          if (!moveSteps.includes(session.tutorialStep)) {
+              audioService.play('ERROR');
+              return;
+          }
+          
+          // Enforce targets
+          if (session.tutorialStep === 'MOVE_1') {
+              if (tq !== 1 || tr !== -1) { 
+                  audioService.play('ERROR'); 
+                  set({ toast: { message: "Wrong Sector. Target marked in BLUE (1, -1)", type: 'error', timestamp: Date.now() } });
+                  return; 
+              }
+          }
+          if (session.tutorialStep === 'MOVE_2') {
+              if (tq !== 0 || tr !== -1) { 
+                  audioService.play('ERROR'); 
+                  set({ toast: { message: "Wrong Sector. Target marked in BLUE (0, -1)", type: 'error', timestamp: Date.now() } });
+                  return; 
+              }
+          }
+          if (session.tutorialStep === 'MOVE_3') {
+              if (tq !== 0 || tr !== 0) { 
+                  audioService.play('ERROR'); 
+                  set({ toast: { message: "Return to Center (0, 0)", type: 'error', timestamp: Date.now() } });
+                  return; 
+              }
+          }
       }
 
       if (pendingConfirmation) {
@@ -293,13 +332,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const res = engine.applyAction(session.player.id, action);
       if (res.ok) {
         audioService.play('MOVE');
+        
         // Tutorial Progression for Movement
-        if (session.tutorialStep === 'MOVE_UNIT') {
-           advanceTutorial('EXPLAIN_ACQUIRE');
-        } else if (session.tutorialStep === 'EXPLAIN_QUEUE') {
-           // If they moved away from the just-upgraded hex
-           advanceTutorial('FREE_PLAY');
-        }
+        if (session.tutorialStep === 'MOVE_1') get().advanceTutorial('ACQUIRE_1');
+        else if (session.tutorialStep === 'MOVE_2') get().advanceTutorial('ACQUIRE_2');
+        else if (session.tutorialStep === 'MOVE_3') get().advanceTutorial('ACQUIRE_3');
+
         set({ session: engine.state });
       } else {
         audioService.play('ERROR');
@@ -336,124 +374,4 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ session: engine.state });
   },
 
-  tick: () => {
-      if (!engine || engine.state.gameStatus !== 'PLAYING') return;
-      
-      const playerHexKey = getHexKey(engine.state.player.q, engine.state.player.r);
-      const playerHexBefore = engine.state.grid[playerHexKey];
-      const durabilityBefore = playerHexBefore?.durability;
-
-      const result = engine.processTick();
-      
-      const playerHexAfter = result.state.grid[playerHexKey];
-      if (playerHexBefore && playerHexAfter && playerHexAfter.maxLevel === 1) {
-         if ((durabilityBefore || 3) > (playerHexAfter.durability || 3)) {
-            if ((playerHexAfter.durability || 0) <= 0) {
-               audioService.play('WARNING');
-            } else {
-               audioService.play('CRACK'); 
-            }
-         }
-      }
-
-      const now = Date.now();
-      if (result.state.effects) {
-          result.state.effects = result.state.effects.filter(e => now - e.startTime < e.lifetime);
-      } else {
-          result.state.effects = [];
-      }
-
-      const hasEvents = result.events.length > 0;
-      
-      if (hasEvents) {
-          result.events.forEach(event => {
-            const isPlayer = event.entityId === result.state.player.id;
-            
-            if (isPlayer) {
-               switch (event.type) {
-                 case 'LEVEL_UP': audioService.play('LEVEL_UP'); break;
-                 case 'SECTOR_ACQUIRED': audioService.play('SUCCESS'); break;
-                 case 'RECOVERY_USED': audioService.play('COIN'); break;
-                 case 'HEX_COLLAPSE': audioService.play('COLLAPSE'); break;
-                 case 'ACTION_DENIED': 
-                 case 'ERROR': audioService.play('ERROR'); break;
-               }
-               // Check tutorial progression
-               if (event.type === 'SECTOR_ACQUIRED' && result.state.tutorialStep === 'EXPLAIN_ACQUIRE') {
-                   get().advanceTutorial('EXPLAIN_QUEUE');
-               }
-            }
-            if (event.type === 'VICTORY') audioService.play('SUCCESS');
-            if (event.type === 'DEFEAT') audioService.play('ERROR');
-
-            // ... Effects logic (simplified for brevity, assume existing) ...
-            if (event.entityId) {
-                 const entity = result.state.player.id === event.entityId 
-                    ? result.state.player 
-                    : result.state.bots.find(b => b.id === event.entityId);
-                 const targetQ = event.data?.q !== undefined ? Number(event.data.q) : (entity?.q || 0);
-                 const targetR = event.data?.r !== undefined ? Number(event.data.r) : (entity?.r || 0);
-
-                 if (entity || event.type === 'HEX_COLLAPSE') {
-                    let text = '';
-                    let color = '#ffffff';
-                    let icon: FloatingText['icon'] = undefined;
-
-                    switch (event.type) {
-                        case 'LEVEL_UP':
-                            text = isPlayer ? "RANK UP!" : "RIVAL UP!";
-                            color = isPlayer ? "#fbbf24" : "#f87171"; 
-                            icon = 'UP';
-                            break;
-                        case 'SECTOR_ACQUIRED':
-                            text = isPlayer ? "ACQUIRED" : "EXPANSION";
-                            color = isPlayer ? "#38bdf8" : "#f87171"; 
-                            icon = 'PLUS';
-                            break;
-                        case 'RECOVERY_USED':
-                            if (isPlayer) {
-                                text = "+MOVES";
-                                color = "#34d399";
-                                icon = 'COIN';
-                            }
-                            break;
-                        case 'HEX_COLLAPSE':
-                            text = "COLLAPSE";
-                            color = "#ef4444";
-                            icon = 'DOWN';
-                            break;
-                    }
-
-                    if (text) {
-                        result.state.effects.push({
-                            id: `fx-${Date.now()}-${Math.random()}`,
-                            q: targetQ,
-                            r: targetR,
-                            text,
-                            color,
-                            icon,
-                            startTime: now,
-                            lifetime: 1200 
-                        });
-                    }
-                 }
-            }
-          });
-      }
-
-      if (hasEvents || true) {
-          // ... Standard UI update logic ...
-           let newToast = get().toast;
-           // Error toast logic...
-           const error = result.events.find(e => e.type === 'ACTION_DENIED' || e.type === 'ERROR');
-           if (error && error.entityId === engine.state.player.id) {
-               newToast = { message: error.message || 'Error', type: 'error', timestamp: Date.now() };
-           }
-
-          set(state => ({ 
-              session: result.state,
-              toast: newToast,
-          }));
-      }
-  }
-}));
+  checkTutorialCamera: (

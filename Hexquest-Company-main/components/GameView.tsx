@@ -1,6 +1,4 @@
 
-
-
 import React, { useEffect, useCallback, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { Stage, Layer, Line, Group, Text, Circle } from 'react-konva';
 import Konva from 'konva';
@@ -83,22 +81,22 @@ const DustCloud: React.FC<VisualParticle & { onComplete: (id: number) => void }>
 
 
 const FloatingEffect: React.FC<{ effect: FloatingText; rotation: number }> = React.memo(({ effect, rotation }) => {
-    const groupRef = useRef<Konva.Group>(null);
+    const animRef = useRef<Konva.Group>(null);
     const { x, y } = hexToPixel(effect.q, effect.r, rotation);
     
-    useLayoutEffect(() => {
-        const node = groupRef.current;
+    useEffect(() => {
+        const node = animRef.current;
         if (!node) return;
 
-        // Init
-        node.position({ x, y: y - 40 }); // Start slightly above hex
+        // Init State
+        node.y(0);
         node.opacity(0);
         node.scale({ x: 0.5, y: 0.5 });
 
         // Animation
         const tween = new Konva.Tween({
             node: node,
-            y: y - 100, // Float up
+            y: -80, // Float up relative to hex center
             opacity: 0,
             scaleX: 1.2,
             scaleY: 1.2,
@@ -112,24 +110,26 @@ const FloatingEffect: React.FC<{ effect: FloatingText; rotation: number }> = Rea
         tween.play();
 
         return () => tween.destroy();
-    }, [effect, x, y]);
+    }, []); // Run once on mount. Position updates are handled by parent Group props.
 
     return (
-        <Group ref={groupRef} listening={false}>
-            <Text
-                text={effect.text}
-                fontSize={16}
-                fontFamily="monospace"
-                fontStyle="bold"
-                fill={effect.color}
-                x={-50} 
-                width={100}
-                align="center"
-                shadowColor={effect.color}
-                shadowBlur={10}
-                shadowOpacity={0.8}
-                shadowOffset={{ x: 0, y: 0 }}
-            />
+        <Group x={x} y={y - 20} listening={false}>
+            <Group ref={animRef}>
+                <Text
+                    text={effect.text}
+                    fontSize={16}
+                    fontFamily="monospace"
+                    fontStyle="bold"
+                    fill={effect.color}
+                    x={-50} 
+                    width={100}
+                    align="center"
+                    shadowColor={effect.color}
+                    shadowBlur={10}
+                    shadowOpacity={0.8}
+                    shadowOffset={{ x: 0, y: 0 }}
+                />
+            </Group>
         </Group>
     );
 });

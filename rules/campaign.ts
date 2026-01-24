@@ -8,8 +8,8 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     botCount: 0, 
     queueSize: 1, 
     targetLevel: 3, 
-    targetCoins: 50, 
-    winType: 'AND', // Requirement: Both
+    targetCoins: 25, 
+    winType: 'AND', 
     difficulty: 'EASY',
     label: 'Training Simulation',
     isTutorial: true
@@ -20,7 +20,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     botCount: 1, 
     queueSize: 1, 
     targetLevel: 3, 
-    targetCoins: 125,  
+    targetCoins: 60, // Снижено со 125 до 60 (легче достичь за счет апгрейдов и пары циклов сбора)
     winType: 'AND',
     difficulty: 'EASY',
     label: 'Sector Patrol'
@@ -31,7 +31,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     botCount: 1, 
     queueSize: 1, 
     targetLevel: 4, 
-    targetCoins: 175,  
+    targetCoins: 125,  
     winType: 'AND',
     difficulty: 'EASY',
     label: 'Expansion'
@@ -42,7 +42,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     botCount: 2, 
     queueSize: 1, 
     targetLevel: 5, 
-    targetCoins: 250,  
+    targetCoins: 200,  
     winType: 'AND',
     difficulty: 'MEDIUM',
     label: 'Escalation'
@@ -58,7 +58,7 @@ export const CAMPAIGN_LEVELS: WinCondition[] = [
     difficulty: 'MEDIUM',
     label: 'Conflict'
   },
-  // LEVEL 10 (Boss/Advanced)
+  // LEVEL 10
   { 
     levelId: 10, 
     botCount: 3, 

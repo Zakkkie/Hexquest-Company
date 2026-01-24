@@ -4,7 +4,6 @@ import { GameState, Entity, Hex, EntityType, UIState, WinCondition, LeaderboardE
 import { GAME_CONFIG } from './rules/config.ts';
 import { getHexKey, getNeighbors, findPath } from './services/hexUtils.ts';
 import { GameEngine } from './engine/GameEngine.ts';
-import { checkGrowthCondition } from './rules/growth.ts';
 import { audioService } from './services/audioService.ts';
 import { CAMPAIGN_LEVELS } from './rules/campaign.ts';
 
@@ -12,7 +11,6 @@ const MOCK_USER_DB: Record<string, { password: string; avatarColor: string; avat
 const BOT_PALETTE = ['#ef4444', '#f97316', '#a855f7', '#ec4899']; 
 const LEADERBOARD_STORAGE_KEY = 'hexquest_leaderboard_v3'; 
 
-// Helper to load persisted leaderboard
 const loadLeaderboard = (): LeaderboardEntry[] => {
   try {
     const stored = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
@@ -23,11 +21,14 @@ const loadLeaderboard = (): LeaderboardEntry[] => {
   }
 };
 
+const saveLeaderboard = (entries: LeaderboardEntry[]) => {
+    localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(entries));
+};
+
 interface AuthResponse { success: boolean; message?: string; }
 
 interface GameStore extends GameState {
   session: SessionState | null;
-
   setUIState: (state: UIState) => void;
   loginAsGuest: (n: string, c: string, i: string) => void;
   registerUser: (n: string, p: string, c: string, i: string) => AuthResponse;
@@ -95,7 +96,6 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     timestamp: Date.now()
   };
 
-  // Give 1 move for tutorial so player can make the first step
   const initialMoves = winCondition.isTutorial ? 1 : GAME_CONFIG.INITIAL_MOVES;
 
   return {
@@ -116,7 +116,7 @@ const createInitialSessionData = (winCondition: WinCondition): SessionState => {
     currentTurn: 0,
     messageLog: [initialLog],
     botActivityLog: [], 
-    gameStatus: 'BRIEFING', // Start in Briefing mode
+    gameStatus: 'BRIEFING',
     lastBotActionTime: Date.now(),
     isPlayerGrowing: false,
     playerGrowthIntent: null,
@@ -253,16 +253,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       if (session.gameStatus === 'BRIEFING') return;
 
-      // Tutorial: Strict Movement Control
       if (session.tutorialStep !== 'FREE_PLAY' && session.tutorialStep !== 'NONE') {
-          // Block movement during non-move steps
           const moveSteps = ['MOVE_1', 'MOVE_2', 'MOVE_3', 'BUILD_FOUNDATION', 'UPGRADE_CENTER_3']; 
           if (!moveSteps.includes(session.tutorialStep)) {
               audioService.play('ERROR');
               return;
           }
           
-          // Enforce targets
           if (session.tutorialStep === 'MOVE_1') {
               if (tq !== 1 || tr !== -1) { 
                   audioService.play('ERROR'); 
@@ -332,12 +329,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const res = engine.applyAction(session.player.id, action);
       if (res.ok) {
         audioService.play('MOVE');
-        
-        // Tutorial Progression for Movement
         if (session.tutorialStep === 'MOVE_1') get().advanceTutorial('ACQUIRE_1');
         else if (session.tutorialStep === 'MOVE_2') get().advanceTutorial('ACQUIRE_2');
         else if (session.tutorialStep === 'MOVE_3') get().advanceTutorial('ACQUIRE_3');
-
         set({ session: engine.state });
       } else {
         audioService.play('ERROR');
@@ -377,7 +371,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   checkTutorialCamera: (deltaX: number) => {
       const { session, advanceTutorial } = get();
       if (session?.tutorialStep === 'CAMERA_ROTATE') {
-          // Simple heuristic: if moved somewhat, advance
           if (Math.abs(deltaX) > 50) { 
               advanceTutorial('MOVE_1');
           }
@@ -385,76 +378,80 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   tick: () => {
-      if (!engine || engine.state.gameStatus !== 'PLAYING') return;
+      if (!engine || !engine.state || engine.state.gameStatus === 'BRIEFING') return;
       
-      const playerHexKey = getHexKey(engine.state.player.q, engine.state.player.r);
-      const playerHexBefore = engine.state.grid[playerHexKey];
-      const durabilityBefore = playerHexBefore?.durability;
-
       const result = engine.processTick();
-      
-      const playerHexAfter = result.state.grid[playerHexKey];
-      if (playerHexBefore && playerHexAfter && playerHexAfter.maxLevel === 1) {
-         if ((durabilityBefore || 3) > (playerHexAfter.durability || 3)) {
-            if ((playerHexAfter.durability || 0) <= 0) {
-               audioService.play('WARNING');
-            } else {
-               audioService.play('CRACK'); 
-            }
-         }
-      }
+      if (!result || !result.state) return;
 
-      const now = Date.now();
-      if (result.state.effects) {
-          result.state.effects = result.state.effects.filter(e => now - e.startTime < e.lifetime);
-      } else {
-          result.state.effects = [];
-      }
-
-      const hasEvents = result.events.length > 0;
-      
-      if (hasEvents) {
+      if (result.events.length > 0) {
           result.events.forEach(event => {
             const isPlayer = event.entityId === result.state.player.id;
             
-            if (isPlayer) {
+            if (isPlayer || !event.entityId) {
                switch (event.type) {
                  case 'LEVEL_UP': audioService.play('LEVEL_UP'); break;
                  case 'SECTOR_ACQUIRED': audioService.play('SUCCESS'); break;
                  case 'RECOVERY_USED': audioService.play('COIN'); break;
                  case 'HEX_COLLAPSE': audioService.play('COLLAPSE'); break;
-                 case 'ACTION_DENIED': 
-                 case 'ERROR': audioService.play('ERROR'); break;
+                 case 'VICTORY': audioService.play('SUCCESS'); break;
+                 case 'DEFEAT': audioService.play('ERROR'); break;
                }
-               // Check tutorial progression
-               if (event.type === 'SECTOR_ACQUIRED') {
-                   // Tutorial Steps
+
+               if (event.type === 'SECTOR_ACQUIRED' && isPlayer) {
                    const step = result.state.tutorialStep;
                    if (step === 'ACQUIRE_1') get().advanceTutorial('MOVE_2');
                    if (step === 'ACQUIRE_2') get().advanceTutorial('MOVE_3');
                    if (step === 'ACQUIRE_3') get().advanceTutorial('UPGRADE_CENTER_2');
-               }
-               if (event.type === 'LEVEL_UP') {
-                   const step = result.state.tutorialStep;
-                   if (step === 'UPGRADE_CENTER_2') get().advanceTutorial('BUILD_FOUNDATION');
-                   if (step === 'UPGRADE_CENTER_3') {
-                        get().advanceTutorial('VICTORY_ANIMATION');
-                        engine?.triggerVictory(); // FORCE VICTORY IN ENGINE
+                   
+                   if (step === 'BUILD_FOUNDATION') {
+                        const neighbors = getNeighbors(0,0);
+                        const l2Count = neighbors.filter(n => result.state.grid[getHexKey(n.q, n.r)]?.maxLevel >= 2).length;
+                        if (l2Count >= 3) get().advanceTutorial('UPGRADE_CENTER_3');
                    }
                }
-               if (event.type === 'VICTORY') {
-                   if (result.state.tutorialStep === 'VICTORY_ANIMATION') {
-                       // Handle tutorial victory
-                       audioService.play('SUCCESS');
+               if (event.type === 'LEVEL_UP' && isPlayer) {
+                   const step = result.state.tutorialStep;
+                   if (step === 'UPGRADE_CENTER_2') get().advanceTutorial('BUILD_FOUNDATION');
+                   if (step === 'BUILD_FOUNDATION') {
+                        const neighbors = getNeighbors(0,0);
+                        const l2Count = neighbors.filter(n => result.state.grid[getHexKey(n.q, n.r)]?.maxLevel >= 2).length;
+                        if (l2Count >= 3) get().advanceTutorial('UPGRADE_CENTER_3');
+                   }
+                   if (step === 'UPGRADE_CENTER_3') {
+                        get().advanceTutorial('VICTORY_ANIMATION');
+                        engine?.triggerVictory(); 
                    }
                }
             }
-            
-            if (event.type === 'VICTORY') audioService.play('SUCCESS');
-            if (event.type === 'DEFEAT') audioService.play('ERROR');
 
-            // ... Effects logic ...
-            if (event.entityId) {
+            if (event.type === 'LEADERBOARD_UPDATE' && event.data?.entry) {
+                const entry = event.data.entry as LeaderboardEntry;
+                const user = get().user;
+                if (user) {
+                    entry.nickname = user.nickname;
+                    entry.avatarColor = user.avatarColor;
+                    entry.avatarIcon = user.avatarIcon;
+                }
+                
+                const currentLB = [...get().leaderboard];
+                const existingIdx = currentLB.findIndex(e => e.nickname === entry.nickname && e.difficulty === entry.difficulty);
+                
+                if (existingIdx !== -1) {
+                    const existing = currentLB[existingIdx];
+                    if (entry.maxLevel > existing.maxLevel || (entry.maxLevel === existing.maxLevel && entry.maxCoins > existing.maxCoins)) {
+                        currentLB[existingIdx] = entry;
+                    }
+                } else {
+                    currentLB.push(entry);
+                }
+                
+                currentLB.sort((a, b) => b.maxLevel !== a.maxLevel ? b.maxLevel - a.maxLevel : b.maxCoins - a.maxCoins);
+                const slicedLB = currentLB.slice(0, 100);
+                saveLeaderboard(slicedLB);
+                set({ leaderboard: slicedLB });
+            }
+
+            if (event.entityId || event.type === 'HEX_COLLAPSE') {
                  const entity = result.state.player.id === event.entityId 
                     ? result.state.player 
                     : result.state.bots.find(b => b.id === event.entityId);
@@ -468,13 +465,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
                     switch (event.type) {
                         case 'LEVEL_UP':
-                            text = isPlayer ? "RANK UP!" : "RIVAL UP!";
+                            text = isPlayer ? "RANK UP" : "RIVAL UP"; // Neutral terms
                             color = isPlayer ? "#fbbf24" : "#f87171"; 
                             icon = 'UP';
                             break;
                         case 'SECTOR_ACQUIRED':
-                            text = isPlayer ? "ACQUIRED" : "EXPANSION";
-                            color = isPlayer ? "#38bdf8" : "#f87171"; 
+                            text = "LINKED"; // Changed from ACQUIRED/EXPANSION
+                            color = isPlayer ? "#4ade80" : "#f87171"; // Green for player to indicate +1 Point
                             icon = 'PLUS';
                             break;
                         case 'RECOVERY_USED':
@@ -499,7 +496,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                             text,
                             color,
                             icon,
-                            startTime: now,
+                            startTime: Date.now(),
                             lifetime: 1200 
                         });
                     }
@@ -508,17 +505,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
           });
       }
 
-      if (hasEvents || true) {
-           let newToast = get().toast;
-           const error = result.events.find(e => e.type === 'ACTION_DENIED' || e.type === 'ERROR');
-           if (error && error.entityId === engine.state.player.id) {
-               newToast = { message: error.message || 'Error', type: 'error', timestamp: Date.now() };
-           }
-
-          set(state => ({ 
-              session: result.state,
-              toast: newToast,
-          }));
+      let newToast = get().toast;
+      const error = result.events.find(e => e.type === 'ACTION_DENIED' || e.type === 'ERROR');
+      if (error && error.entityId === engine?.state?.player.id) {
+          newToast = { message: error.message || 'Error', type: 'error', timestamp: Date.now() };
       }
+
+      set({ 
+          session: result.state,
+          toast: newToast,
+      });
   }
 }));

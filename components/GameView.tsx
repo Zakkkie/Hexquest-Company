@@ -81,22 +81,22 @@ const DustCloud: React.FC<VisualParticle & { onComplete: (id: number) => void }>
 
 
 const FloatingEffect: React.FC<{ effect: FloatingText; rotation: number }> = React.memo(({ effect, rotation }) => {
-    const groupRef = useRef<Konva.Group>(null);
+    const animRef = useRef<Konva.Group>(null);
     const { x, y } = hexToPixel(effect.q, effect.r, rotation);
     
-    useLayoutEffect(() => {
-        const node = groupRef.current;
+    useEffect(() => {
+        const node = animRef.current;
         if (!node) return;
 
-        // Init
-        node.position({ x, y: y - 40 }); // Start slightly above hex
+        // Init State
+        node.y(0);
         node.opacity(0);
         node.scale({ x: 0.5, y: 0.5 });
 
         // Animation
         const tween = new Konva.Tween({
             node: node,
-            y: y - 100, // Float up
+            y: -80, // Float up relative to hex center
             opacity: 0,
             scaleX: 1.2,
             scaleY: 1.2,
@@ -110,24 +110,26 @@ const FloatingEffect: React.FC<{ effect: FloatingText; rotation: number }> = Rea
         tween.play();
 
         return () => tween.destroy();
-    }, [effect, x, y]);
+    }, []); // Run once on mount. Position updates are handled by parent Group props.
 
     return (
-        <Group ref={groupRef} listening={false}>
-            <Text
-                text={effect.text}
-                fontSize={16}
-                fontFamily="monospace"
-                fontStyle="bold"
-                fill={effect.color}
-                x={-50} 
-                width={100}
-                align="center"
-                shadowColor={effect.color}
-                shadowBlur={10}
-                shadowOpacity={0.8}
-                shadowOffset={{ x: 0, y: 0 }}
-            />
+        <Group x={x} y={y - 20} listening={false}>
+            <Group ref={animRef}>
+                <Text
+                    text={effect.text}
+                    fontSize={16}
+                    fontFamily="monospace"
+                    fontStyle="bold"
+                    fill={effect.color}
+                    x={-50} 
+                    width={100}
+                    align="center"
+                    shadowColor={effect.color}
+                    shadowBlur={10}
+                    shadowOpacity={0.8}
+                    shadowOffset={{ x: 0, y: 0 }}
+                />
+            </Group>
         </Group>
     );
 });
@@ -435,7 +437,7 @@ const GameView: React.FC = () => {
         });
      }
      return items.sort((a, b) => a.depth - b.depth);
-  }, [grid, player, safeBots, cameraRotation, isMoving, isPlayerGrowing, viewState, dimensions, neighbors, movementTracker, tutorialStep, winCondition]); // Added tutorialStep and winCondition to deps
+  }, [grid, player, safeBots, cameraRotation, isMoving, isPlayerGrowing, viewState, dimensions, neighbors, movementTracker, tutorialStep, winCondition]);
 
   // --- RENDER ---
   return (
@@ -488,7 +490,6 @@ const GameView: React.FC = () => {
                         else if (tutorialStep === 'UPGRADE_CENTER_2' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'amber'; }
                         else if (tutorialStep === 'UPGRADE_CENTER_3' && q === 0 && r === 0) { isTutorialTarget = true; tutorialHighlightColor = 'cyan'; }
                         
-                        // SMART HIGHLIGHT FOR FOUNDATION PHASE
                         if (tutorialStep === 'BUILD_FOUNDATION') {
                             const queueSize = winCondition?.queueSize || 1;
                             const hex = grid[item.id];
@@ -496,23 +497,15 @@ const GameView: React.FC = () => {
                             const isCurrent = player.q === q && player.r === r;
 
                             if (player.recentUpgrades.length >= queueSize) {
-                                // Cycle Full (Has Points)
-                                
-                                // 1. TARGETS (Amber): Valid L1 -> L2 Upgrades
                                 if (hex && hex.maxLevel === 1 && (isNeighbor || isCurrent)) {
                                     isTutorialTarget = true; 
                                     tutorialHighlightColor = 'amber';
                                 }
-                                
-                                // 2. CONFIRMATION (Cyan): Existing L2s (Supports/Foundation)
-                                // This provides feedback on what is already "done"
                                 if (hex && hex.maxLevel === 2 && (isNeighbor || isCurrent)) {
                                     isTutorialTarget = true;
                                     tutorialHighlightColor = 'cyan';
                                 }
-
                             } else {
-                                // Cycle Empty (Need Points) -> Highlight valid L0s (Movement targets)
                                 if (hex && hex.maxLevel === 0 && isNeighbor) {
                                     isTutorialTarget = true; 
                                     tutorialHighlightColor = 'emerald';
@@ -551,7 +544,8 @@ const GameView: React.FC = () => {
                             color={unit.avatarColor} 
                             rotation={cameraRotation} 
                             hexLevel={hLevel} 
-                            totalCoinsEarned={unit.totalCoinsEarned} 
+                            totalCoinsEarned={unit.totalCoinsEarned}
+                            upgradePointCount={unit.recentUpgrades.length} // Pass upgrade points for +1 popup
                             onMoveComplete={spawnDust}
                         />
                     );

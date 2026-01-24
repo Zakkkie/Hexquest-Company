@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 import React, { useState } from 'react';
 import { useGameStore } from '../store.ts';
 import { Trophy, LogOut, Ghost, Play, ArrowRight, Zap, Shield, UserCircle, X, LogIn, Lock, Target, Gem, Crown, Bot, Skull, Activity, Signal, Volume2, VolumeX, BookOpen } from 'lucide-react';
@@ -105,7 +99,7 @@ const MainMenu: React.FC = () => {
       difficulty: difficulty,
       label: `${tier.label} (L${tier.level} + ${tier.coins}c)`,
       queueSize: difficulty === 'EASY' ? 1 : difficulty === 'MEDIUM' ? 2 : 3,
-      winType: 'OR'
+      winType: 'AND'
     };
     startNewGame(winCondition);
     setShowMissionConfig(false);
