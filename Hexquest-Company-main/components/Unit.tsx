@@ -219,7 +219,6 @@ const Unit: React.FC<UnitProps> = React.memo(({ q, r, type, color, rotation, hex
     }, node.getLayer());
 
     anim.start();
-    // Return explicit void function to fix TS error
     return () => {
         anim.stop();
     };

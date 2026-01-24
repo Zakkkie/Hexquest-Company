@@ -7,7 +7,7 @@ import { EXCHANGE_RATE_COINS_PER_MOVE, DIFFICULTY_SETTINGS } from '../rules/conf
 import { EntityState, TutorialStep } from '../types.ts';
 import HexButton from './HexButton.tsx';
 import { CAMPAIGN_LEVELS } from '../rules/campaign.ts';
-import { TEXT } from '../services/i18n.ts';
+import { TEXT } from '../services/i18n';
 import { 
   AlertCircle, Pause, Trophy, Coins, Footprints, AlertTriangle, LogOut,
   Crown, TrendingUp, ChevronUp, ChevronDown, Shield, MapPin,
